@@ -1,9 +1,12 @@
 import type { Route } from "./+types/pantalla.$slug"
-import { Link, useLoaderData, useRevalidator } from "react-router"
+import { useLoaderData, useRevalidator } from "react-router"
 import qrcode from "qrcode-generator"
 import { useEffect } from "react"
 import { supabase } from "~/lib/supabase"
 import { formatearDuracion } from "~/lib/format"
+
+const APK_URL =
+  "https://dsopvxdfhimztngcxgdo.supabase.co/storage/v1/object/public/descargas/app-debug.apk"
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
   { title: loaderData?.nombre ? `${loaderData.nombre} — Cola` : "La Rocola" },
@@ -19,7 +22,7 @@ type ItemCola = {
   votos: number
 }
 
-export async function loader({ params, request }: Route.LoaderArgs) {
+export async function loader({ params }: Route.LoaderArgs) {
   const slug = params.slug
 
   const { data: est } = await supabase
@@ -31,11 +34,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   if (!est) throw new Response("Not Found", { status: 404 })
 
-  const rutaLocal = `/${encodeURIComponent(slug)}`
   const qr = qrcode(0, "M")
-  qr.addData(new URL(rutaLocal, request.url).href)
+  qr.addData(APK_URL)
   qr.make()
-  const acceso = { rutaLocal, qr: qr.createDataURL(4, 16) }
+  const qrApk = qr.createDataURL(4, 16)
 
   const { data: sesion } = await supabase
     .from("sesion")
@@ -44,7 +46,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     .eq("estado", "activa")
     .maybeSingle()
 
-  if (!sesion) return { ...acceso, nombre: est.nombre as string, cola: [] as ItemCola[], sesionActiva: false }
+  if (!sesion) return { nombre: est.nombre as string, cola: [] as ItemCola[], sesionActiva: false, qrApk }
 
   const { data: solicitudes } = await supabase
     .from("solicitud")
@@ -74,11 +76,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
       return b.votos - a.votos
     })
 
-  return { ...acceso, nombre: est.nombre as string, cola, sesionActiva: true }
+  return { nombre: est.nombre as string, cola, sesionActiva: true, qrApk }
 }
 
 export default function PantallaEstablecimiento() {
-  const { nombre, cola, sesionActiva, rutaLocal, qr } = useLoaderData<typeof loader>()
+  const { nombre, cola, sesionActiva, qrApk } = useLoaderData<typeof loader>()
   const { revalidate } = useRevalidator()
 
   useEffect(() => {
@@ -169,13 +171,13 @@ export default function PantallaEstablecimiento() {
             )}
           </section>
 
-          <Link to={rutaLocal} className="rocola-paper mt-auto flex items-center gap-4 rounded-2xl p-3 sm:p-4">
-            <img src={qr} alt="" width={92} height={92} className="size-[5.25rem] shrink-0 rounded-lg sm:size-[5.75rem]" />
+          <a href={APK_URL} className="rocola-paper mt-auto flex items-center gap-4 rounded-2xl p-3 sm:p-4">
+            <img src={qrApk} alt="" width={92} height={92} className="size-[5.25rem] shrink-0 rounded-lg sm:size-[5.75rem]" />
             <div>
-              <p className="text-lg leading-tight font-bold xl:text-xl">¡Pide tu canción!</p>
-              <p className="mt-1 text-sm text-slate-700">Escanea el QR para abrir La Rocola en tu celular.</p>
+              <p className="text-lg leading-tight font-bold xl:text-xl">Descarga La Rocola</p>
+              <p className="mt-1 text-sm text-slate-700">Escanea el QR para descargar el APK en Android.</p>
             </div>
-          </Link>
+          </a>
         </aside>
       </div>
     </main>
