@@ -1,5 +1,5 @@
 import type { Route } from "./+types/pantalla.$slug"
-import { useLoaderData, useRevalidator } from "react-router"
+import { useRevalidator } from "react-router"
 import qrcode from "qrcode-generator"
 import { useEffect } from "react"
 import { supabase } from "~/lib/supabase"
@@ -9,7 +9,7 @@ const APK_URL =
   "https://dsopvxdfhimztngcxgdo.supabase.co/storage/v1/object/public/descargas/app-debug.apk"
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [
-  { title: loaderData?.nombre ? `${loaderData.nombre} — Cola` : "La Rocola" },
+  { title: loaderData ? `${loaderData.nombre} — ${loaderData.vista === "acceso" ? "La Rocola" : "Cola"}` : "La Rocola" },
 ]
 
 type ItemCola = {
@@ -22,7 +22,7 @@ type ItemCola = {
   votos: number
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
   const slug = params.slug
 
   const { data: est } = await supabase
@@ -34,10 +34,18 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   if (!est) throw new Response("Not Found", { status: 404 })
 
+  const nombre = est.nombre as string
+  const url = new URL(request.url)
+  if (url.searchParams.get("unirse") === "1") {
+    return { vista: "acceso" as const, nombre, enlaceApp: `larocola://e/${encodeURIComponent(slug)}` }
+  }
+
+  url.search = "?unirse=1"
+  const rutaAcceso = url.pathname + url.search
   const qr = qrcode(0, "M")
-  qr.addData(APK_URL)
+  qr.addData(url.href)
   qr.make()
-  const qrApk = qr.createDataURL(4, 16)
+  const pantalla = { vista: "cola" as const, nombre, rutaAcceso, qrAcceso: qr.createDataURL(4, 16) }
 
   const { data: sesion } = await supabase
     .from("sesion")
@@ -46,7 +54,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     .eq("estado", "activa")
     .maybeSingle()
 
-  if (!sesion) return { nombre: est.nombre as string, cola: [] as ItemCola[], sesionActiva: false, qrApk }
+  if (!sesion) return { ...pantalla, cola: [] as ItemCola[], sesionActiva: false }
 
   const { data: solicitudes } = await supabase
     .from("solicitud")
@@ -76,11 +84,30 @@ export async function loader({ params }: Route.LoaderArgs) {
       return b.votos - a.votos
     })
 
-  return { nombre: est.nombre as string, cola, sesionActiva: true, qrApk }
+  return { ...pantalla, cola, sesionActiva: true }
 }
 
-export default function PantallaEstablecimiento() {
-  const { nombre, cola, sesionActiva, qrApk } = useLoaderData<typeof loader>()
+export default function PantallaEstablecimiento({ loaderData }: Route.ComponentProps) {
+  if (loaderData.vista === "cola") return <PantallaCola {...loaderData} />
+
+  const { nombre, enlaceApp } = loaderData
+  return (
+    <main className="rocola-page grid min-h-dvh place-items-center px-5 py-10">
+      <section className="rocola-paper w-full max-w-sm rounded-3xl p-6 text-center sm:p-8">
+        <p className="rocola-paper-kicker text-xs font-bold tracking-[.15em] uppercase">La Rocola</p>
+        <h1 className="rocola-display mt-2 text-4xl leading-tight">{nombre}</h1>
+        <p className="mt-3 text-sm text-slate-700">Pide canciones y vota desde la app de Android.</p>
+        <div className="mt-6 grid gap-3">
+          <a href={enlaceApp} className="rocola-button block">Abrir en La Rocola</a>
+          <a href={APK_URL} className="block rounded-xl border border-current px-4 py-3 font-semibold hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2">Descargar APK</a>
+        </div>
+        <p className="mt-4 text-sm text-slate-700">Si acabas de instalar la app, vuelve aquí y toca «Abrir en La Rocola».</p>
+      </section>
+    </main>
+  )
+}
+
+function PantallaCola({ nombre, cola, sesionActiva, rutaAcceso, qrAcceso }: Extract<Route.ComponentProps["loaderData"], { vista: "cola" }>) {
   const { revalidate } = useRevalidator()
 
   useEffect(() => {
@@ -174,11 +201,11 @@ export default function PantallaEstablecimiento() {
             )}
           </section>
 
-          <a href={APK_URL} className="rocola-paper mt-auto flex items-center gap-4 rounded-2xl p-3 sm:p-4">
-            <img src={qrApk} alt="" width={92} height={92} className="size-[5.25rem] shrink-0 rounded-lg sm:size-[5.75rem]" />
+          <a href={rutaAcceso} className="rocola-paper mt-auto flex items-center gap-4 rounded-2xl p-3 sm:p-4">
+            <img src={qrAcceso} alt="" width={112} height={112} className="size-24 shrink-0 rounded-lg sm:size-28" />
             <div>
-              <p className="text-lg leading-tight font-bold xl:text-xl">Descarga La Rocola</p>
-              <p className="mt-1 text-sm text-slate-700">Escanea el QR para descargar el APK en Android.</p>
+              <p className="text-lg leading-tight font-bold xl:text-xl">Entra a La Rocola</p>
+              <p className="mt-1 text-sm text-slate-700">Escanea el QR para abrir este local en tu celular.</p>
             </div>
           </a>
         </aside>
