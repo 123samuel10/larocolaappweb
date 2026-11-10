@@ -16,7 +16,7 @@ type ItemCola = {
   solicitudId: string
   titulo: string
   artista: string
-  miniaturaUrl: string
+  miniaturaUrl: string | null
   duracionSeg: number
   estado: string
   votos: number
@@ -65,7 +65,7 @@ export async function loader({ params }: Route.LoaderArgs) {
       solicitudId: s.id as string,
       titulo: s.cancion.titulo as string,
       artista: s.cancion.artista as string,
-      miniaturaUrl: s.cancion.miniatura_url as string,
+      miniaturaUrl: s.cancion.miniatura_url as string | null,
       duracionSeg: s.cancion.duracion_seg as number,
       estado: s.estado as string,
       votos: (s.voto as { id: string }[]).length,
@@ -101,15 +101,16 @@ export default function PantallaEstablecimiento() {
 
   const reproduciendo = cola.find((i) => i.estado === "reproduciendo")
   const enCola = cola.filter((i) => i.estado === "pendiente")
+  const destacada = reproduciendo ?? enCola[0]
 
   return (
     <main className="rocola-page min-h-dvh px-5 py-6 sm:px-8 sm:py-8 xl:px-11 xl:py-10">
       <div className="mx-auto grid max-w-[112rem] gap-8 lg:grid-cols-[minmax(0,2.2fr)_minmax(18rem,1fr)] xl:gap-10">
         <section aria-labelledby="now-playing-heading" className="min-w-0">
           <div className="rocola-media relative isolate grid aspect-video place-items-center overflow-hidden rounded-[1.25rem]">
-            {reproduciendo?.miniaturaUrl ? (
+            {destacada?.miniaturaUrl ? (
               <img
-                src={reproduciendo.miniaturaUrl}
+                src={destacada.miniaturaUrl}
                 alt=""
                 className="absolute inset-0 -z-10 size-full object-cover"
               />
@@ -125,14 +126,16 @@ export default function PantallaEstablecimiento() {
             </p>
           </div>
           <div className="mt-5">
-            <p className="rocola-kicker mb-1 text-xs font-bold tracking-[.14em] uppercase sm:text-sm">Sonando ahora</p>
+            <p className="rocola-kicker mb-1 text-xs font-bold tracking-[.14em] uppercase sm:text-sm">
+              {reproduciendo ? "Sonando ahora" : destacada ? "Próxima canción" : "Reproducción"}
+            </p>
             <h1 id="now-playing-heading" className="rocola-display text-4xl leading-tight sm:text-5xl xl:text-6xl">
-              {reproduciendo?.titulo ?? (sesionActiva ? "Sin reproducción" : "No hay sesión activa")}
+              {destacada?.titulo ?? (sesionActiva ? "Sin reproducción" : "No hay sesión activa")}
             </h1>
-            {reproduciendo && (
+            {destacada && (
               <div className="rocola-muted mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-base sm:text-xl">
-                <p>{reproduciendo.artista} · {reproduciendo.votos} {reproduciendo.votos === 1 ? "voto" : "votos"}</p>
-                <p className="font-bold tabular-nums">{formatearDuracion(reproduciendo.duracionSeg)}</p>
+                <p>{destacada.artista} · {destacada.votos} {destacada.votos === 1 ? "voto" : "votos"}</p>
+                <p className="font-bold tabular-nums">{formatearDuracion(destacada.duracionSeg)}</p>
               </div>
             )}
           </div>
