@@ -1,5 +1,5 @@
-import { AuthClient } from "@supabase/supabase-js"
 import { createCookie, data, redirect } from "react-router"
+import { createAdminAuth } from "./api/auth.server"
 
 const adminCookie = createCookie("rocola_admin", {
   httpOnly: true,
@@ -9,16 +9,6 @@ const adminCookie = createCookie("rocola_admin", {
 })
 
 const privateHeaders = { "Cache-Control": "private, no-store" }
-
-function createAdminAuth() {
-  return new AuthClient({
-    url: new URL("/auth/v1", import.meta.env.VITE_SUPABASE_URL).href,
-    headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  })
-}
 
 export async function loadAdmin(request: Request) {
   const token = await adminCookie.parse(request.headers.get("Cookie"))

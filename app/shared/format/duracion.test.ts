@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatearDuracion, formatearEspera } from "~/lib/format"
+import { formatearDuracion, formatearEspera } from "./duracion"
 
 describe("formatearDuracion", () => {
   it("formats seconds under a minute", () => {

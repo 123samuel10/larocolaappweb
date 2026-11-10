@@ -1,0 +1,25 @@
+.rocola-queue-item:first-child {
+  background: var(--rocola-red);
+}
+
+.rocola-media,
+.rocola-queue-item {
+  background: var(--rocola-blue);
+}
+
+.rocola-media-label {
+  background: var(--rocola-navy);
+  color: var(--rocola-muted);
+}
+
+.rocola-rank {
+  color: var(--rocola-coral);
+}
+
+.rocola-queue-item:first-child .rocola-rank {
+  color: #fff;
+}
+
+.rocola-queue-item:first-child .rocola-muted {
+  color: #fff1f2;
+}
