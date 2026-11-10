@@ -1,0 +1,4 @@
+{
+  "framework": "react-router",
+  "buildCommand": "pnpm run build"
+}
