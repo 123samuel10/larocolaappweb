@@ -33,7 +33,7 @@ export function FormularioAdministrador({ loginError }: FormularioAdministradorP
   return (
     <section aria-labelledby="admin-heading" className="rocola-paper rounded-3xl p-6 shadow-2xl sm:p-9">
       <p className="rocola-paper-kicker mb-2 text-xs font-bold tracking-[.15em] uppercase">Administración del sistema</p>
-      <h2 id="admin-heading" className="rocola-display mb-7 text-3xl sm:text-4xl">
+      <h2 id="admin-heading" className="rocola-display mb-7 text-xl">
         {admin ? "Sesión iniciada" : "Iniciar sesión"}
       </h2>
       {admin ? (

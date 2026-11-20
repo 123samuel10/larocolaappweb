@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { obtenerAdmins, crearAdmin } from "@/db/superadmin/admins"
 import { obtenerEstablecimientos } from "@/db/superadmin/establecimientos"
+import { Dropdown } from "@/shared/ui/Dropdown"
 
 export default function Admins() {
   const qc = useQueryClient()
@@ -39,6 +40,10 @@ export default function Admins() {
       setFormError("Todos los campos son requeridos.")
       return
     }
+    if (!sinAdmin.some((e) => e.id === form.establecimiento_id)) {
+      setFormError("Selecciona un establecimiento disponible.")
+      return
+    }
     if (form.password.length < 8) {
       setFormError("La contraseña debe tener al menos 8 caracteres.")
       return
@@ -50,7 +55,7 @@ export default function Admins() {
     <div className="p-8">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h1 className="rocola-display text-3xl text-[#0c2944]">Administradores</h1>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Administradores</h1>
           <p className="text-sm text-gray-500 mt-1">{admins.length} registrados</p>
         </div>
         <button
@@ -103,20 +108,21 @@ export default function Admins() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#0c2944] mb-1">
+                <label
+                  id="establecimiento-admin-label"
+                  htmlFor="establecimiento-admin"
+                  className="block text-sm font-medium text-[#0c2944] mb-1"
+                >
                   Establecimiento
                 </label>
-                <select
-                  className="rocola-input"
+                <Dropdown
+                  id="establecimiento-admin"
                   value={form.establecimiento_id}
-                  onChange={(e) => setForm((f) => ({ ...f, establecimiento_id: e.target.value }))}
+                  options={sinAdmin.map((e) => ({ value: e.id, label: e.nombre }))}
+                  onChange={(establecimiento_id) => setForm((f) => ({ ...f, establecimiento_id }))}
+                  placeholder="Selecciona un establecimiento…"
                   required
-                >
-                  <option value="">Selecciona un establecimiento…</option>
-                  {sinAdmin.map((e) => (
-                    <option key={e.id} value={e.id}>{e.nombre}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-[#0c2944] mb-1">

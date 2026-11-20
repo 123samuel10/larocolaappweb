@@ -16,12 +16,12 @@ export default function Reproduccion() {
 
   return (
     <div className="p-8">
-      <h1 className="rocola-display text-3xl text-[#0c2944] mb-6">Reproduccion</h1>
+      <h1 className="rocola-display text-xl text-[#0c2944] mb-6">Reproduccion</h1>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 380px" }}>
         <div className="bg-white rounded-2xl p-6">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Origen: solicitud</p>
-          <h2 className="font-bold text-2xl text-[#0c2944]">La Bicicleta</h2>
+          <h2 className="font-bold text-xl text-[#0c2944]">La Bicicleta</h2>
           <p className="text-sm text-gray-500 mt-1">Carlos Vives, Shakira</p>
           <div className="mt-5 bg-gray-200 h-2 rounded-full overflow-hidden">
             <div className="bg-[#ba1929] h-full rounded-full" style={{ width: "60%" }} />

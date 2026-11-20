@@ -1,22 +1,92 @@
-import { useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Dropdown } from "@/shared/ui/Dropdown"
 import {
   obtenerEstablecimientos,
   crearEstablecimiento,
   toggleActivo,
+  type Establecimiento,
 } from "@/db/superadmin/establecimientos"
 
 const ZONAS = [
-  "America/Bogota",
-  "America/Mexico_City",
-  "America/Lima",
-  "America/Santiago",
-  "America/Buenos_Aires",
+  { value: "America/Bogota", label: "Bogotá" },
+  { value: "America/Mexico_City", label: "Ciudad de México" },
+  { value: "America/Lima", label: "Lima" },
+  { value: "America/Santiago", label: "Santiago" },
+  { value: "America/Buenos_Aires", label: "Buenos Aires" },
 ]
+
+function ModalDesactivar({
+  nombre,
+  pendiente,
+  error,
+  onCancelar,
+  onConfirmar,
+}: {
+  nombre: string
+  pendiente: boolean
+  error: boolean
+  onCancelar: () => void
+  onConfirmar: () => void
+}) {
+  const ref = useRef<HTMLDialogElement>(null)
+
+  useLayoutEffect(() => {
+    const dialogo = ref.current
+    if (!dialogo) return
+    dialogo.showModal()
+    return () => dialogo.close()
+  }, [])
+
+  return (
+    <dialog
+      ref={ref}
+      role="alertdialog"
+      aria-labelledby="desactivar-titulo"
+      aria-describedby="desactivar-descripcion"
+      onCancel={(evento) => {
+        evento.preventDefault()
+        if (!pendiente) onCancelar()
+      }}
+      className="m-auto w-[calc(100%_-_2rem)] max-w-md rounded-2xl bg-white p-8 shadow-xl backdrop:bg-black/50"
+    >
+      <h2 id="desactivar-titulo" className="text-xl font-bold text-[#0c2944]">
+        Desactivar establecimiento
+      </h2>
+      <p id="desactivar-descripcion" className="mt-3 text-sm text-gray-600">
+        ¿Estás seguro de desactivar <strong>{nombre}</strong>?
+      </p>
+      {error && (
+        <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+          No se pudo desactivar el establecimiento. Inténtalo de nuevo.
+        </p>
+      )}
+      <div className="mt-6 flex gap-3">
+        <button
+          type="button"
+          onClick={onCancelar}
+          disabled={pendiente}
+          className="flex-1 rounded-xl border border-[#0c2944] py-2 text-sm font-medium text-[#0c2944] transition-colors hover:bg-[#0c2944]/5 disabled:opacity-60"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onConfirmar}
+          disabled={pendiente}
+          className="flex-1 rounded-xl bg-red-700 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 disabled:opacity-60"
+        >
+          {pendiente ? "Desactivando…" : "Desactivar"}
+        </button>
+      </div>
+    </dialog>
+  )
+}
 
 export default function Establecimientos() {
   const qc = useQueryClient()
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [porDesactivar, setPorDesactivar] = useState<Pick<Establecimiento, "id" | "nombre"> | null>(null)
   const [form, setForm] = useState({ nombre: "", slug: "", zona_horaria: "America/Bogota" })
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -36,7 +106,10 @@ export default function Establecimientos() {
   })
 
   const toggle = useMutation({
-    mutationFn: ({ id, activo }: { id: string; activo: boolean }) => toggleActivo(id, activo),
+    mutationFn: async ({ id, activo }: { id: string; activo: boolean }) => {
+      const { error } = await toggleActivo(id, activo)
+      if (error) throw error
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["superadmin", "establecimientos"] }),
   })
 
@@ -58,7 +131,7 @@ export default function Establecimientos() {
     <div className="p-8">
       <div className="flex justify-between items-end mb-6">
         <div>
-          <h1 className="rocola-display text-3xl text-[#0c2944]">Establecimientos</h1>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Establecimientos</h1>
           <p className="text-sm text-gray-500 mt-1">{establecimientos.length} registrados</p>
         </div>
         <button
@@ -106,8 +179,19 @@ export default function Establecimientos() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
-                      onClick={() => toggle.mutate({ id: e.id, activo: !e.activo })}
-                      className="text-xs text-gray-400 hover:text-[#0c2944] transition-colors"
+                      type="button"
+                      onClick={() => {
+                        if (e.activo) {
+                          toggle.reset()
+                          setPorDesactivar({ id: e.id, nombre: e.nombre })
+                        } else {
+                          toggle.mutate({ id: e.id, activo: true })
+                        }
+                      }}
+                      disabled={toggle.isPending && !porDesactivar}
+                      className={e.activo
+                        ? "rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors disabled:opacity-60"
+                        : "text-xs text-gray-400 hover:text-[#0c2944] transition-colors disabled:opacity-60"}
                     >
                       {e.activo ? "Desactivar" : "Activar"}
                     </button>
@@ -118,6 +202,28 @@ export default function Establecimientos() {
           </table>
         )}
       </div>
+
+      {porDesactivar ? (
+        <ModalDesactivar
+          nombre={porDesactivar.nombre}
+          pendiente={toggle.isPending}
+          error={toggle.isError}
+          onCancelar={() => {
+            toggle.reset()
+            setPorDesactivar(null)
+          }}
+          onConfirmar={() => {
+            toggle.mutate(
+              { id: porDesactivar.id, activo: false },
+              { onSuccess: () => setPorDesactivar(null) },
+            )
+          }}
+        />
+      ) : toggle.isError && (
+        <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+          No se pudo activar el establecimiento. Inténtalo de nuevo.
+        </p>
+      )}
 
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
@@ -148,14 +254,19 @@ export default function Establecimientos() {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0c2944] mb-1">Zona horaria</label>
-                <select
-                  className="rocola-input"
-                  value={form.zona_horaria}
-                  onChange={(e) => setForm((f) => ({ ...f, zona_horaria: e.target.value }))}
+                <label
+                  id="zona-horaria-label"
+                  htmlFor="zona-horaria"
+                  className="block text-sm font-medium text-[#0c2944] mb-1"
                 >
-                  {ZONAS.map((z) => <option key={z}>{z}</option>)}
-                </select>
+                  Zona horaria
+                </label>
+                <Dropdown
+                  id="zona-horaria"
+                  value={form.zona_horaria}
+                  options={ZONAS}
+                  onChange={(zona_horaria) => setForm((f) => ({ ...f, zona_horaria }))}
+                />
               </div>
               {formError && (
                 <p className="text-sm text-red-700 bg-red-50 rounded-xl p-3">{formError}</p>

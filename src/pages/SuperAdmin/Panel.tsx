@@ -19,21 +19,21 @@ export default function Panel() {
 
   return (
     <div className="p-8">
-      <h1 className="rocola-display text-3xl text-[#0c2944] mb-6">Panel</h1>
+      <h1 className="rocola-display text-xl text-[#0c2944] mb-6">Panel</h1>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Establecimientos</p>
-          <p className="text-5xl font-bold text-[#0c2944]">{establecimientos.length}</p>
+          <p className="text-xl font-bold text-[#0c2944]">{establecimientos.length}</p>
           <p className="text-xs text-gray-400 mt-1">{activos} activos</p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Administradores</p>
-          <p className="text-5xl font-bold text-[#0c2944]">{admins.length}</p>
+          <p className="text-xl font-bold text-[#0c2944]">{admins.length}</p>
         </div>
         <div className={`rounded-2xl p-5 ${sinAdmin > 0 ? "bg-amber-50" : "bg-white"}`}>
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Sin administrador</p>
-          <p className={`text-5xl font-bold ${sinAdmin > 0 ? "text-amber-600" : "text-[#0c2944]"}`}>
+          <p className={`text-xl font-bold ${sinAdmin > 0 ? "text-amber-600" : "text-[#0c2944]"}`}>
             {sinAdmin}
           </p>
         </div>

@@ -1,3 +1,8 @@
+import { useState } from "react"
+import { Dropdown } from "@/shared/ui/Dropdown"
+
+const sesiones = [{ value: "viernes-20", label: "Viernes 20 nov — 8:00 p.m." }]
+
 const topSongs = [
   { title: "La Bicicleta", artist: "Carlos Vives, Shakira", votes: 18 },
   { title: "Tusa", artist: "Karol G, Nicki Minaj", votes: 15 },
@@ -22,18 +27,20 @@ const historial = [
 ]
 
 export default function Tablero() {
+  const [sesion, setSesion] = useState(sesiones[0].value)
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="rocola-display text-3xl text-[#0c2944]">Tablero de la sesion</h1>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Tablero de la sesion</h1>
           <p className="text-sm text-gray-500 mt-1">Resumen de actividad de la noche</p>
         </div>
         <div className="flex items-center gap-3 mt-1">
-          <label className="text-xs uppercase tracking-widest text-gray-400">Sesion</label>
-          <select className="rocola-input text-sm" style={{ width: "auto" }}>
-            <option>Viernes 20 nov — 8:00 p.m.</option>
-          </select>
+          <label id="sesion-tablero-label" htmlFor="sesion-tablero" className="text-xs uppercase tracking-widest text-gray-400">
+            Sesión
+          </label>
+          <Dropdown id="sesion-tablero" value={sesion} options={sesiones} onChange={setSesion} />
         </div>
       </div>
 
@@ -46,7 +53,7 @@ export default function Tablero() {
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-5">
             <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">{s.label}</p>
-            <p className="text-4xl font-bold text-[#0c2944]">{s.value}</p>
+            <p className="text-xl font-bold text-[#0c2944]">{s.value}</p>
           </div>
         ))}
       </div>

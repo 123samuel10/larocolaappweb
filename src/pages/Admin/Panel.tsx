@@ -12,7 +12,7 @@ export default function Panel() {
       <div className="flex justify-between items-end">
         <div>
           <p className="text-sm text-gray-500">La Esquina Bar — Viernes 20 de noviembre</p>
-          <h1 className="rocola-display text-3xl text-[#0c2944]">Panel</h1>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Panel</h1>
         </div>
         <div className="flex gap-3">
           <button className="border border-[#133b62] text-[#133b62] rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#133b62]/5 transition-colors">
@@ -27,20 +27,20 @@ export default function Panel() {
       <div className="grid grid-cols-4 gap-4 mt-6">
         <div className="rounded-2xl p-5" style={{ background: "#133b62" }}>
           <p className="text-xs uppercase tracking-widest text-white/60 mb-2">Estado del servicio</p>
-          <p className="text-white font-bold text-lg leading-tight">Activo — pedidos abiertos</p>
+          <p className="text-white font-bold text-sm leading-tight">Activo — pedidos abiertos</p>
           <p className="text-xs text-white/50 mt-1">Cierra a las 2:00 a.m.</p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Solicitudes</p>
-          <p className="text-5xl font-bold text-[#0c2944]">46</p>
+          <p className="text-xl font-bold text-[#0c2944]">46</p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Usuarios únicos</p>
-          <p className="text-5xl font-bold text-[#0c2944]">31</p>
+          <p className="text-xl font-bold text-[#0c2944]">31</p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">En cola</p>
-          <p className="text-5xl font-bold text-[#0c2944]">5</p>
+          <p className="text-xl font-bold text-[#0c2944]">5</p>
         </div>
       </div>
 

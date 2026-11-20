@@ -13,7 +13,7 @@ export default function ListaDefecto() {
     <div className="p-8">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="rocola-display text-3xl text-[#0c2944]">Lista por defecto</h1>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Lista por defecto</h1>
           <p className="text-sm text-gray-500 mt-1">Canciones que suenan cuando no hay solicitudes pendientes</p>
         </div>
         <div className="flex gap-3 items-center mt-1">
@@ -65,7 +65,7 @@ export default function ListaDefecto() {
 
         <div className="bg-white rounded-2xl p-6 flex flex-col">
           <p className="text-sm font-bold text-[#0c2944] mb-2">Cumplimiento de la noche</p>
-          <p className="text-5xl font-bold text-[#0c2944] mb-2">64%</p>
+          <p className="text-xl font-bold text-[#0c2944] mb-2">64%</p>
           <p className="text-xs text-gray-500 mb-6">Porcentaje de canciones de la lista por defecto que sonaron según lo planificado.</p>
           <div className="flex justify-between text-sm py-2 border-b border-gray-100">
             <span className="text-gray-600">Cambios entre lista y solicitudes</span>

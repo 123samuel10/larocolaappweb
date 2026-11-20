@@ -8,7 +8,7 @@ export function AccesoLocal({ nombre, enlaceApp }: DatosAccesoLocal) {
     <main className="rocola-page grid min-h-dvh place-items-center px-5 py-10">
       <section className="rocola-paper w-full max-w-sm rounded-3xl p-6 text-center sm:p-8">
         <p className="rocola-paper-kicker text-xs font-bold tracking-[.15em] uppercase">La Rocola</p>
-        <h1 className="rocola-display mt-2 text-4xl leading-tight">{nombre}</h1>
+        <h1 className="rocola-display mt-2 text-xl leading-tight">{nombre}</h1>
         <p className="mt-3 text-sm text-slate-700">Pide canciones y vota desde la app de Android.</p>
         <div className="mt-6 grid gap-3">
           <a href={enlaceApp} className="rocola-button block">Abrir en La Rocola</a>

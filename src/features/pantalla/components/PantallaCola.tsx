@@ -28,7 +28,7 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, ruta
           <a href={rutaAcceso} className="rocola-paper mt-auto flex items-center gap-4 rounded-2xl p-3 sm:p-4">
             <img src={qrAcceso} alt="" width={112} height={112} className="size-24 shrink-0 rounded-lg sm:size-28" />
             <div>
-              <p className="text-lg leading-tight font-bold xl:text-xl">Entra a La Rocola</p>
+              <p className="text-xl leading-tight font-bold">Entra a La Rocola</p>
               <p className="mt-1 text-sm text-slate-700">Escanea el QR para abrir este local en tu celular.</p>
             </div>
           </a>

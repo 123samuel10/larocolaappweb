@@ -18,7 +18,7 @@ export default function PantallaPage() {
   if (result.estado === "noEncontrado") {
     return (
       <main className="rocola-page grid min-h-dvh place-items-center">
-        <p className="text-white text-lg">Este local no existe o no está activo.</p>
+        <p className="text-white text-sm">Este local no existe o no está activo.</p>
       </main>
     )
   }

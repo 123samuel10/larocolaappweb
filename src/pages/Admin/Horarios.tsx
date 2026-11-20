@@ -13,7 +13,7 @@ export default function Horarios() {
 
   return (
     <div className="p-8">
-      <h1 className="rocola-display text-3xl text-[#0c2944] mb-6">Horarios y mantenimiento</h1>
+      <h1 className="rocola-display text-xl text-[#0c2944] mb-6">Horarios y mantenimiento</h1>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-6">
@@ -45,7 +45,7 @@ export default function Horarios() {
         </div>
 
         <div className="bg-white rounded-2xl p-6">
-          <h3 className="font-bold text-[#0c2944] text-lg mb-2">Modo mantenimiento</h3>
+          <h3 className="font-bold text-[#0c2944] text-xl mb-2">Modo mantenimiento</h3>
           <p className="text-sm text-gray-600 mb-4">
             Cierra la sesion de esta noche, elimina la cola y bloquea nuevas solicitudes hasta que el servicio se reactive manualmente.
           </p>
