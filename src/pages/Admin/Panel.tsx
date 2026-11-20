@@ -1,66 +1,164 @@
-const queue = [
-  { pos: 1, title: "Tusa", artist: "Karol G, Nicki Minaj", votes: 15 },
-  { pos: 2, title: "Vivir Mi Vida", artist: "Marc Anthony", votes: 11 },
-  { pos: 3, title: "Rayando el Sol", artist: "Maná", votes: 7 },
-  { pos: 4, title: "Felices los 4", artist: "Maluma", votes: 4 },
-  { pos: 5, title: "La Gota Fria", artist: "Carlos Vives", votes: 2 },
-]
+import { useEffect, useState } from "react"
+import { useQuery, useMutation } from "@tanstack/react-query"
+import { Link } from "wouter"
+import { useSesionActiva } from "@/features/admin/hooks/useSesionActiva"
+import { useColaAdminEnVivo } from "@/features/admin/hooks/useColaAdminEnVivo"
+import { obtenerColaAdmin, saltarCancion } from "@/db/admin/cola"
+import { obtenerResumenSesion } from "@/db/admin/estadisticas"
+import { obtenerEstablecimientoPropio } from "@/db/admin/establecimiento"
+import { obtenerHorarios } from "@/db/admin/horarios"
+import { pausarSesion } from "@/db/admin/sesion"
+import { diaSemanaActual } from "@/lib/horario"
+import { formatearDuracion } from "@/shared/format/duracion"
+
+function formatHora12(hora: string): string {
+  const [hStr, mStr] = hora.split(":")
+  let h = parseInt(hStr, 10)
+  const periodo = h >= 12 ? "p.m." : "a.m."
+  h = h % 12
+  if (h === 0) h = 12
+  return `${h}:${mStr} ${periodo}`
+}
 
 export default function Panel() {
+  const { establecimientoId, sesion, isLoading: cargandoSesion, invalidar } = useSesionActiva()
+  const [, setTick] = useState(0)
+
+  const { data: establecimiento } = useQuery({
+    queryKey: ["admin", "establecimiento", establecimientoId],
+    queryFn: () => obtenerEstablecimientoPropio(establecimientoId!),
+    enabled: !!establecimientoId,
+  })
+
+  const { data: horarios = [] } = useQuery({
+    queryKey: ["admin", "horarios", establecimientoId],
+    queryFn: () => obtenerHorarios(establecimientoId!),
+    enabled: !!establecimientoId,
+  })
+
+  const { data: cola = [] } = useQuery({
+    queryKey: ["admin", "cola", sesion?.id],
+    queryFn: () => obtenerColaAdmin(sesion!.id),
+    enabled: !!sesion,
+  })
+
+  const { data: resumen } = useQuery({
+    queryKey: ["admin", "resumen", sesion?.id],
+    queryFn: () => obtenerResumenSesion(sesion!.id),
+    enabled: !!sesion,
+  })
+
+  useColaAdminEnVivo(sesion?.id ?? null)
+
+  const actual = cola.find((i) => i.estado === "reproduciendo") ?? null
+  const siguientes = cola.filter((i) => i.estado !== "reproduciendo")
+
+  useEffect(() => {
+    if (!actual?.inicioReproduccion) return
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [actual?.inicioReproduccion])
+
+  const togglePausa = useMutation({
+    mutationFn: () => pausarSesion(sesion!.id, !sesion!.pausada),
+    onSuccess: invalidar,
+  })
+
+  const saltar = useMutation({
+    mutationFn: () => saltarCancion(sesion!.id, actual?.solicitudId ?? null),
+  })
+
+  if (cargandoSesion) return null
+
+  const horarioHoy = establecimiento
+    ? horarios.find((h) => h.dia_semana === diaSemanaActual(establecimiento.zonaHoraria))
+    : undefined
+
+  const fechaHoy = establecimiento
+    ? new Intl.DateTimeFormat("es-CO", {
+        timeZone: establecimiento.zonaHoraria,
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }).format(new Date())
+    : ""
+
+  const elapsedSeg = actual?.inicioReproduccion
+    ? Math.min(actual.duracionSeg, Math.floor((Date.now() - new Date(actual.inicioReproduccion).getTime()) / 1000))
+    : 0
+
+  const estadoLabel = !sesion
+    ? "Cerrado"
+    : sesion.pausada
+      ? "Pausado manualmente"
+      : "Activo — pedidos abiertos"
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-end">
         <div>
-          <p className="text-sm text-gray-500">La Esquina Bar — Viernes 20 de noviembre</p>
+          <p className="text-sm text-gray-500">
+            {establecimiento?.nombre}
+            {fechaHoy && ` — ${fechaHoy}`}
+          </p>
           <h1 className="rocola-display text-xl text-[#0c2944]">Panel</h1>
         </div>
         <div className="flex gap-3">
-          <button className="border border-[#133b62] text-[#133b62] rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#133b62]/5 transition-colors">
-            Pausar servicio
+          <button
+            onClick={() => togglePausa.mutate()}
+            disabled={!sesion || togglePausa.isPending}
+            className="border border-[#133b62] text-[#133b62] rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#133b62]/5 transition-colors disabled:opacity-50"
+          >
+            {sesion?.pausada ? "Reanudar servicio" : "Pausar servicio"}
           </button>
-          <button className="bg-[#ba1929] text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#a01522] transition-colors">
+          <Link
+            to="/admin/reproduccion"
+            className="bg-[#ba1929] text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#a01522] transition-colors"
+          >
             Ir a reproduccion
-          </button>
+          </Link>
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mt-6">
         <div className="rounded-2xl p-5" style={{ background: "#133b62" }}>
           <p className="text-xs uppercase tracking-widest text-white/60 mb-2">Estado del servicio</p>
-          <p className="text-white font-bold text-sm leading-tight">Activo — pedidos abiertos</p>
-          <p className="text-xs text-white/50 mt-1">Cierra a las 2:00 a.m.</p>
+          <p className="text-white font-bold text-sm leading-tight">{estadoLabel}</p>
+          <p className="text-xs text-white/50 mt-1">
+            {horarioHoy ? `Cierra a las ${formatHora12(horarioHoy.hora_fin)}` : "Sin horario para hoy"}
+          </p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Solicitudes</p>
-          <p className="text-xl font-bold text-[#0c2944]">46</p>
+          <p className="text-xl font-bold text-[#0c2944]">{resumen?.totalSolicitudes ?? 0}</p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Usuarios únicos</p>
-          <p className="text-xl font-bold text-[#0c2944]">31</p>
+          <p className="text-xl font-bold text-[#0c2944]">{resumen?.usuariosUnicos ?? 0}</p>
         </div>
         <div className="bg-white rounded-2xl p-5">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">En cola</p>
-          <p className="text-xl font-bold text-[#0c2944]">5</p>
+          <p className="text-xl font-bold text-[#0c2944]">{siguientes.length}</p>
         </div>
       </div>
 
       <div className="grid gap-4 mt-4" style={{ gridTemplateColumns: "1fr 380px" }}>
         <div className="bg-white rounded-2xl p-6">
           <div className="flex justify-between items-center mb-4">
-            <span className="font-bold text-[#0c2944]">Cola — 5 canciones</span>
-            <span className="text-sm text-gray-400">~19 min</span>
+            <span className="font-bold text-[#0c2944]">Cola — {siguientes.length} canciones</span>
           </div>
           <div className="space-y-3">
-            {queue.map((song) => (
-              <div key={song.pos} className="flex items-center gap-3">
+            {siguientes.length === 0 && <p className="text-sm text-gray-400">No hay canciones en cola.</p>}
+            {siguientes.map((song, i) => (
+              <div key={song.solicitudId} className="flex items-center gap-3">
                 <span className="text-xs font-bold text-white bg-[#0c2944] rounded px-2 py-0.5 min-w-[24px] text-center">
-                  {song.pos}
+                  {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-[#0c2944] truncate">{song.title}</p>
-                  <p className="text-xs text-gray-400 truncate">{song.artist}</p>
+                  <p className="font-medium text-[#0c2944] truncate">{song.titulo}</p>
+                  <p className="text-xs text-gray-400 truncate">{song.artista}</p>
                 </div>
-                <span className="text-sm text-gray-500 shrink-0">{song.votes}v</span>
+                <span className="text-sm text-gray-500 shrink-0">{song.votos}v</span>
               </div>
             ))}
           </div>
@@ -68,23 +166,35 @@ export default function Panel() {
 
         <div className="bg-white rounded-2xl p-6">
           <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Sonando ahora</p>
-          <p className="font-bold text-xl text-[#0c2944]">La Bicicleta</p>
-          <p className="text-sm text-gray-500 mt-1">Carlos Vives, Shakira — pedida con 18 votos</p>
-          <div className="mt-4 bg-gray-200 h-2 rounded-full overflow-hidden">
-            <div className="bg-[#ba1929] h-full rounded-full" style={{ width: "60%" }} />
-          </div>
-          <div className="flex justify-between text-xs text-gray-400 mt-1">
-            <span>2:16</span>
-            <span>3:48</span>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button className="flex-1 border border-[#0c2944] text-[#0c2944] rounded-xl py-2 text-sm font-medium hover:bg-[#0c2944]/5 transition-colors">
-              Pausar
-            </button>
-            <button className="flex-1 bg-[#133b62] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#0c2944] transition-colors">
-              Saltar
-            </button>
-          </div>
+          {actual ? (
+            <>
+              <p className="font-bold text-xl text-[#0c2944]">{actual.titulo}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {actual.artista} — pedida con {actual.votos} votos
+              </p>
+              <div className="mt-4 bg-gray-200 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-[#ba1929] h-full rounded-full"
+                  style={{ width: `${Math.min(100, (elapsedSeg / actual.duracionSeg) * 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>{formatearDuracion(elapsedSeg)}</span>
+                <span>{formatearDuracion(actual.duracionSeg)}</span>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => saltar.mutate()}
+                  disabled={saltar.isPending}
+                  className="flex-1 bg-[#133b62] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#0c2944] transition-colors disabled:opacity-60"
+                >
+                  Saltar
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">Nada reproduciéndose.</p>
+          )}
         </div>
       </div>
     </div>

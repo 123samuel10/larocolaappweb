@@ -34,6 +34,11 @@ function localDowYHora(timezone: string): { dow: number; hora: string } {
   }
 }
 
+/** Devuelve el día de la semana actual (0=domingo…6=sábado) en la zona horaria dada. */
+export function diaSemanaActual(timezone: string): number {
+  return localDowYHora(timezone).dow
+}
+
 /**
  * Devuelve true si el horario está activo ahora para la zona horaria dada.
  * Se omite la validación si VITE_SKIP_HORARIO_CHECK=true (desarrollo local).
