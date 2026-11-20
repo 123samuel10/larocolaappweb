@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import qrcode from "qrcode-generator"
 import { obtenerColaActiva, obtenerEstablecimientoActivo } from "@/db/pantalla/cola"
+import { obtenerHorarios } from "@/db/pantalla/horarios"
+import { esHorarioActivo } from "@/lib/horario"
 import type { DatosAccesoLocal, DatosPantallaCola } from "../types"
 
 function generarQr(url: string): string {
@@ -29,6 +31,14 @@ export function usePantalla(slug: string, currentUrl: string) {
     refetchInterval: false,
   })
 
+  const horariosQuery = useQuery({
+    queryKey: ["horarios", establecimiento?.id ?? ""],
+    queryFn: () => obtenerHorarios(establecimiento!.id),
+    enabled: !!establecimiento && !esAcceso,
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60,
+  })
+
   if (establecimientoQuery.isLoading) return { estado: "cargando" as const }
   if (!establecimiento) return { estado: "noEncontrado" as const }
 
@@ -45,6 +55,11 @@ export function usePantalla(slug: string, currentUrl: string) {
   accessUrl.search = "?unirse=1"
   const qrAcceso = generarQr(accessUrl.href)
 
+  const servicioAbierto = esHorarioActivo(
+    horariosQuery.data ?? [],
+    establecimiento.zona_horaria,
+  )
+
   const datos: DatosPantallaCola = {
     vista: "cola",
     nombre: establecimiento.nombre,
@@ -52,6 +67,7 @@ export function usePantalla(slug: string, currentUrl: string) {
     qrAcceso,
     cola: colaQuery.data?.cola ?? [],
     sesionActiva: colaQuery.data?.sesionActiva ?? false,
+    servicioAbierto,
   }
 
   return { estado: "listo" as const, datos, establecimientoId: establecimiento.id }

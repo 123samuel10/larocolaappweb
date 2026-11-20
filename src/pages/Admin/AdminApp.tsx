@@ -1,7 +1,5 @@
 import { Route, Switch, Redirect } from "wouter"
-import { useEffect } from "react"
-import { useLocation } from "wouter"
-import { useAuth } from "@/store/AuthContext"
+import { useAuth } from "@/store/useAuth"
 import AdminLayout from "@/components/Layout/AdminLayout"
 import Panel from "./Panel"
 import Reproduccion from "./Reproduccion"
@@ -11,14 +9,9 @@ import Tablero from "./Tablero"
 
 export default function AdminApp() {
   const { admin, loading } = useAuth()
-  const [, navigate] = useLocation()
-
-  useEffect(() => {
-    if (!loading && !admin) navigate("/")
-  }, [admin, loading, navigate])
 
   if (loading) return null
-  if (!admin) return null
+  if (!admin || admin.role !== "bar_admin") return <Redirect to="/" />
 
   return (
     <AdminLayout>

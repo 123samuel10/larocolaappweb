@@ -16,11 +16,11 @@ type FilaSolicitud = {
 export async function obtenerEstablecimientoActivo(slug: string) {
   const { data } = await supabase
     .from("establecimiento")
-    .select("id, nombre")
+    .select("id, nombre, zona_horaria")
     .eq("slug", slug)
     .eq("activo", true)
     .single()
-    .overrideTypes<{ id: string; nombre: string } | null, { merge: false }>()
+    .overrideTypes<{ id: string; nombre: string; zona_horaria: string } | null, { merge: false }>()
 
   return data
 }

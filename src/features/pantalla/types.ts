@@ -21,4 +21,5 @@ export type DatosPantallaCola = {
   qrAcceso: string
   cola: ItemCola[]
   sesionActiva: boolean
+  servicioAbierto: boolean
 }

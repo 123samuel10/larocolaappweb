@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter"
 import { type ReactNode } from "react"
-import { useAuth } from "@/store/AuthContext"
+import { useAuth } from "@/store/useAuth"
 
 type AdminLayoutProps = { children: ReactNode }
 

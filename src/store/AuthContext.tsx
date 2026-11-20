@@ -1,32 +1,62 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useEffect, useState, type ReactNode } from "react"
 import { supabase } from "@/shared/supabase/client"
 
-type Admin = { email: string }
+export type AdminRole = "super_admin" | "bar_admin"
+
+export type AdminUser = {
+  email: string
+  role: AdminRole
+  establecimientoId: string | null
+}
 
 type AuthContextValue = {
-  admin: Admin | null
+  admin: AdminUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<string | null>
   logout: () => Promise<void>
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null)
+export const AuthContext = createContext<AuthContextValue | null>(null)
+
+async function resolveAdmin(userId: string, email: string, role: string): Promise<AdminUser | null> {
+  if (role === "super_admin") {
+    return { email, role: "super_admin", establecimientoId: null }
+  }
+  if (role === "bar_admin") {
+    const { data } = await supabase
+      .from("perfil_admin")
+      .select("establecimiento_id")
+      .eq("user_id", userId)
+      .single()
+    return { email, role: "bar_admin", establecimientoId: data?.establecimiento_id ?? null }
+  }
+  return null
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [admin, setAdmin] = useState<Admin | null>(null)
+  const [admin, setAdmin] = useState<AdminUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      const isAdmin = user?.app_metadata.role === "system_admin"
-      setAdmin(isAdmin && user?.email ? { email: user.email } : null)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const user = session?.user ?? null
-      const isAdmin = user?.app_metadata.role === "system_admin"
-      setAdmin(isAdmin && user?.email ? { email: user.email } : null)
+      const role = user?.app_metadata?.role
+      const resolved =
+        user?.email && (role === "super_admin" || role === "bar_admin")
+          ? await resolveAdmin(user.id, user.email, role)
+          : null
+      setAdmin(resolved)
+      setLoading(false)
+    }).catch((e) => { console.error("[Auth] getSession error", e); setLoading(false) })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const user = session?.user ?? null
+      const role = user?.app_metadata?.role
+      const resolved =
+        user?.email && (role === "super_admin" || role === "bar_admin")
+          ? await resolveAdmin(user.id, user.email, role)
+          : null
+      setAdmin(resolved)
     })
 
     return () => subscription.unsubscribe()
@@ -37,7 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     })
-    if (error || !session || user?.app_metadata.role !== "system_admin") {
+    const role = user?.app_metadata?.role
+    if (error || !session || (role !== "super_admin" && role !== "bar_admin")) {
       await supabase.auth.signOut()
       return "No se pudo iniciar sesión. Revisa tus credenciales y tu acceso de administrador."
     }
@@ -55,8 +86,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider")
-  return ctx
-}

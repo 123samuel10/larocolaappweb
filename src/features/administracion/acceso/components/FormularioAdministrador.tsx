@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { useLocation } from "wouter"
-import { useAuth } from "@/store/AuthContext"
+import { useAuth } from "@/store/useAuth"
 
 export type FormularioAdministradorProps = {
   loginError: string | null
@@ -8,7 +7,6 @@ export type FormularioAdministradorProps = {
 
 export function FormularioAdministrador({ loginError }: FormularioAdministradorProps) {
   const { admin, login, logout } = useAuth()
-  const [, navigate] = useLocation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(loginError)
 
@@ -23,8 +21,6 @@ export function FormularioAdministrador({ loginError }: FormularioAdministradorP
     if (err) {
       setError(err)
       setBusy(false)
-    } else {
-      navigate("/admin")
     }
   }
 
