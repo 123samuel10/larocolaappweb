@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { Music } from "lucide-react"
 import { formatearDuracion } from "@/shared/format/duracion"
 import type { ItemCola } from "../types"
@@ -6,9 +7,25 @@ type CancionDestacadaProps = {
   nombre: string
   cancion?: ItemCola
   sesionActiva: boolean
+  pausada: boolean
+  pausadaEn: string | null
 }
 
-export function CancionDestacada({ nombre, cancion, sesionActiva }: CancionDestacadaProps) {
+export function CancionDestacada({ nombre, cancion, sesionActiva, pausada, pausadaEn }: CancionDestacadaProps) {
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    if (cancion?.estado !== "reproduciendo" || !cancion.inicioReproduccion || pausada) return
+    const id = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [cancion?.estado, cancion?.inicioReproduccion, pausada])
+
+  const enVivo = cancion?.estado === "reproduciendo" && !!cancion.inicioReproduccion
+  const referenciaMs = pausada && pausadaEn ? new Date(pausadaEn).getTime() : Date.now()
+  const elapsedSeg = enVivo
+    ? Math.min(cancion!.duracionSeg, Math.max(0, Math.floor((referenciaMs - new Date(cancion!.inicioReproduccion!).getTime()) / 1000)))
+    : 0
+
   return (
     <section aria-labelledby="now-playing-heading" className="min-w-0">
       <div className="rocola-media relative isolate grid aspect-video place-items-center overflow-hidden rounded-[1.25rem]">
@@ -39,10 +56,26 @@ export function CancionDestacada({ nombre, cancion, sesionActiva }: CancionDesta
           {cancion?.titulo ?? (sesionActiva ? "Sin reproducción" : "No hay sesión activa")}
         </h1>
         {cancion && (
-          <div className="rocola-muted mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
-            <p>{cancion.artista} · {cancion.votos} {cancion.votos === 1 ? "voto" : "votos"}</p>
-            <p className="font-bold tabular-nums">{formatearDuracion(cancion.duracionSeg)}</p>
-          </div>
+          <>
+            <div className="rocola-muted mt-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+              <p>{cancion.artista} · {cancion.votos} {cancion.votos === 1 ? "voto" : "votos"}</p>
+              {enVivo ? (
+                <p className="font-bold tabular-nums">
+                  {formatearDuracion(elapsedSeg)} / {formatearDuracion(cancion.duracionSeg)}
+                </p>
+              ) : (
+                <p className="font-bold tabular-nums">{formatearDuracion(cancion.duracionSeg)}</p>
+              )}
+            </div>
+            {enVivo && (
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-white"
+                  style={{ width: `${Math.min(100, (elapsedSeg / cancion.duracionSeg) * 100)}%` }}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

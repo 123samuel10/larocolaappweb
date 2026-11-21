@@ -1,20 +1,16 @@
 import { useState } from "react"
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { ThumbsUp } from "lucide-react"
 import { useSesionActiva } from "@/features/admin/hooks/useSesionActiva"
 import { useColaAdminEnVivo } from "@/features/admin/hooks/useColaAdminEnVivo"
+import { BloquearCancionModal } from "@/features/admin/components/BloquearCancionModal"
 import { obtenerColaAdmin, saltarCancion, bloquearCancionYQuitar } from "@/db/admin/cola"
-
-const DURACIONES: Record<string, number> = {
-  "1 hora": 1,
-  "2 horas": 2,
-  "Toda la noche": 12,
-}
+import { pausarSesion, reanudarSesion } from "@/db/admin/sesion"
 
 export default function Reproduccion() {
-  const { establecimientoId, sesion, isLoading: cargandoSesion } = useSesionActiva()
+  const { establecimientoId, sesion, isLoading: cargandoSesion, invalidar } = useSesionActiva()
+  const qc = useQueryClient()
   const [modalOpen, setModalOpen] = useState(false)
-  const [selectedDuration, setSelectedDuration] = useState("Toda la noche")
-  const [motivo, setMotivo] = useState("")
 
   const { data: cola = [] } = useQuery({
     queryKey: ["admin", "cola", sesion?.id],
@@ -29,12 +25,17 @@ export default function Reproduccion() {
 
   const saltar = useMutation({
     mutationFn: () => saltarCancion(sesion!.id, actual?.solicitudId ?? null),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "cola", sesion?.id] }),
+  })
+
+  const togglePausa = useMutation({
+    mutationFn: () => (sesion!.pausada ? reanudarSesion(sesion!.id) : pausarSesion(sesion!.id)),
+    onSuccess: invalidar,
   })
 
   const bloquear = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ horas, motivo }: { horas: number; motivo: string }) => {
       if (!actual) return
-      const horas = DURACIONES[selectedDuration]
       const bloqueadaHasta = new Date(Date.now() + horas * 60 * 60 * 1000).toISOString()
       await bloquearCancionYQuitar({
         establecimientoId: establecimientoId!,
@@ -46,8 +47,8 @@ export default function Reproduccion() {
       })
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "cola", sesion?.id] })
       setModalOpen(false)
-      setMotivo("")
     },
   })
 
@@ -64,7 +65,14 @@ export default function Reproduccion() {
               <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Origen: solicitud</p>
               <h2 className="font-bold text-xl text-[#0c2944]">{actual.titulo}</h2>
               <p className="text-sm text-gray-500 mt-1">{actual.artista}</p>
-              <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => togglePausa.mutate()}
+                disabled={togglePausa.isPending}
+                className="mt-4 w-full border border-[#133b62] text-[#133b62] rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#133b62]/5 transition-colors disabled:opacity-50"
+              >
+                {sesion?.pausada ? "Reanudar servicio" : "Pausar servicio"}
+              </button>
+              <div className="flex gap-2 mt-2">
                 <button
                   onClick={() => saltar.mutate()}
                   disabled={saltar.isPending}
@@ -79,6 +87,17 @@ export default function Reproduccion() {
                   Bloquear canción
                 </button>
               </div>
+            </>
+          ) : siguientes.length > 0 ? (
+            <>
+              <p className="text-sm text-gray-400 mb-4">Nada reproduciéndose, pero hay canciones en cola.</p>
+              <button
+                onClick={() => saltar.mutate()}
+                disabled={saltar.isPending}
+                className="bg-[#ba1929] text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#a01522] transition-colors disabled:opacity-60"
+              >
+                {saltar.isPending ? "Iniciando…" : "Reproducir siguiente"}
+              </button>
             </>
           ) : (
             <p className="text-sm text-gray-400">Nada reproduciéndose.</p>
@@ -98,7 +117,10 @@ export default function Reproduccion() {
                   <p className="font-medium text-[#0c2944] truncate">{song.titulo}</p>
                   <p className="text-xs text-gray-400 truncate">{song.artista}</p>
                 </div>
-                <span className="text-sm text-gray-500 shrink-0">{song.votos}v</span>
+                <span className="text-sm text-gray-500 shrink-0 inline-flex items-center gap-1">
+                  <ThumbsUp className="size-3.5" aria-hidden="true" />
+                  {song.votos}
+                </span>
               </div>
             ))}
           </div>
@@ -106,59 +128,13 @@ export default function Reproduccion() {
       </div>
 
       {modalOpen && actual && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white max-w-md w-full rounded-2xl p-8 mx-4">
-            <h3 className="font-bold text-xl text-[#0c2944] mb-2">Bloquear cancion</h3>
-            <p className="text-sm text-gray-600 mb-5">
-              {actual.titulo} — {actual.artista}. Sale de la cola y no se puede volver a pedir durante el bloqueo.
-            </p>
-            <label className="block text-sm font-medium text-[#0c2944] mb-2">Duración del bloqueo</label>
-            <div className="flex gap-3 mb-5">
-              {Object.keys(DURACIONES).map((opt) => (
-                <label
-                  key={opt}
-                  className={`flex-1 flex items-center justify-center border rounded-xl px-4 py-3 text-sm cursor-pointer transition-colors ${
-                    selectedDuration === opt
-                      ? "border-[#133b62] bg-[#133b62]/10 text-[#133b62] font-medium"
-                      : "border-gray-200 text-gray-600"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="duration"
-                    value={opt}
-                    checked={selectedDuration === opt}
-                    onChange={() => setSelectedDuration(opt)}
-                    className="sr-only"
-                  />
-                  {opt}
-                </label>
-              ))}
-            </div>
-            <label className="block text-sm font-medium text-[#0c2944] mb-2">Motivo</label>
-            <textarea
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              className="rocola-input h-20 resize-none"
-              placeholder="Contenido inapropiado para el ambiente"
-            />
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => setModalOpen(false)}
-                className="flex-1 border border-[#0c2944] text-[#0c2944] rounded-xl py-2 text-sm font-medium hover:bg-[#0c2944]/5 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => bloquear.mutate()}
-                disabled={bloquear.isPending}
-                className="flex-1 bg-[#ba1929] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#a01522] transition-colors disabled:opacity-60"
-              >
-                {bloquear.isPending ? "Bloqueando…" : "Bloquear y quitar"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <BloquearCancionModal
+          titulo={actual.titulo}
+          artista={actual.artista}
+          pendiente={bloquear.isPending}
+          onCancelar={() => setModalOpen(false)}
+          onConfirmar={(horas, motivo) => bloquear.mutate({ horas, motivo })}
+        />
       )}
     </div>
   )

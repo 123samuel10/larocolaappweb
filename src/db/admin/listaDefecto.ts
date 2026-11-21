@@ -36,23 +36,6 @@ export async function obtenerListaDefecto(establecimientoId: string): Promise<It
   }))
 }
 
-export type CancionBusqueda = { id: string; titulo: string; artista: string; duracionSeg: number }
-
-export async function buscarCancionesExistentes(consulta: string): Promise<CancionBusqueda[]> {
-  const { data } = await supabase
-    .from("cancion")
-    .select("id, titulo, artista, duracion_seg")
-    .ilike("titulo", `%${consulta}%`)
-    .limit(10)
-
-  return (data ?? []).map((c) => ({
-    id: c.id,
-    titulo: c.titulo,
-    artista: c.artista,
-    duracionSeg: c.duracion_seg,
-  }))
-}
-
 export async function agregarCancionALista(establecimientoId: string, cancionId: string, posicion: number) {
   const { error } = await supabase
     .from("lista_defecto_item")

@@ -68,6 +68,8 @@ export function usePantalla(slug: string, currentUrl: string) {
     cola: colaQuery.data?.cola ?? [],
     sesionActiva: colaQuery.data?.sesionActiva ?? false,
     servicioAbierto,
+    pausada: colaQuery.data?.pausada ?? false,
+    pausadaEn: colaQuery.data?.pausadaEn ?? null,
   }
 
   return { estado: "listo" as const, datos, establecimientoId: establecimiento.id }

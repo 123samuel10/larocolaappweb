@@ -1,20 +1,15 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Plus, Trash2 } from "lucide-react"
 import { useSesionActiva } from "@/features/admin/hooks/useSesionActiva"
-import {
-  obtenerListaDefecto,
-  buscarCancionesExistentes,
-  agregarCancionALista,
-  quitarDeLista,
-  reordenarLista,
-  type CancionBusqueda,
-} from "@/db/admin/listaDefecto"
+import { AgregarCancionModal } from "@/features/admin/components/AgregarCancionModal"
+import { obtenerListaDefecto, agregarCancionALista, quitarDeLista, reordenarLista } from "@/db/admin/listaDefecto"
+import type { ResultadoBusqueda } from "@/db/admin/busqueda"
 
 export default function ListaDefecto() {
   const qc = useQueryClient()
-  const { establecimientoId, isLoading: cargandoSesion } = useSesionActiva()
-  const [busqueda, setBusqueda] = useState("")
-  const [resultados, setResultados] = useState<CancionBusqueda[]>([])
+  const { establecimientoId, sesion, isLoading: cargandoSesion } = useSesionActiva()
+  const [modalAbierto, setModalAbierto] = useState(false)
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["admin", "lista-defecto", establecimientoId],
@@ -31,8 +26,7 @@ export default function ListaDefecto() {
     },
     onSuccess: () => {
       invalidarLista()
-      setBusqueda("")
-      setResultados([])
+      setModalAbierto(false)
     },
   })
 
@@ -53,16 +47,13 @@ export default function ListaDefecto() {
     onSuccess: invalidarLista,
   })
 
-  const buscar = async (consulta: string) => {
-    setBusqueda(consulta)
-    if (consulta.trim().length < 2) {
-      setResultados([])
-      return
-    }
-    setResultados(await buscarCancionesExistentes(consulta.trim()))
+  const handleSeleccionar = (resultado: ResultadoBusqueda) => {
+    if (resultado.cancionId) agregar.mutate(resultado.cancionId)
   }
 
   if (cargandoSesion) return null
+
+  const cancionIdsExistentes = new Set(items.map((i) => i.cancionId))
 
   const totalMin = Math.round(items.reduce((acc, i) => acc + i.duracionSeg, 0) / 60)
   const siguienteIndex = items.findIndex((i) => !i.sonadaEn)
@@ -77,30 +68,13 @@ export default function ListaDefecto() {
           <h1 className="rocola-display text-xl text-[#0c2944]">Lista por defecto</h1>
           <p className="text-sm text-gray-500 mt-1">Canciones que suenan cuando no hay solicitudes pendientes</p>
         </div>
-        <div className="flex gap-3 items-center mt-1 relative">
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => buscar(e.target.value)}
-            placeholder="Buscar cancion..."
-            className="rocola-input text-sm"
-            style={{ width: 220 }}
-          />
-          {resultados.length > 0 && (
-            <div className="absolute top-full right-0 mt-1 w-72 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden">
-              {resultados.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => agregar.mutate(c.id)}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
-                >
-                  <p className="font-medium text-[#0c2944] truncate">{c.titulo}</p>
-                  <p className="text-xs text-gray-400 truncate">{c.artista}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <button
+          onClick={() => setModalAbierto(true)}
+          className="bg-[#133b62] text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#0c2944] transition-colors inline-flex items-center gap-2 whitespace-nowrap mt-1"
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          Agregar canción
+        </button>
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 320px" }}>
@@ -119,11 +93,11 @@ export default function ListaDefecto() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs uppercase tracking-widest text-gray-400 border-b border-gray-100">
-                  <th className="text-left pb-3 w-8">#</th>
-                  <th className="text-left pb-3">Canción</th>
-                  <th className="text-left pb-3">Artista</th>
-                  <th className="text-left pb-3">Estado</th>
-                  <th className="pb-3 w-16" />
+                  <th className="w-8 px-3 pb-3 text-left">#</th>
+                  <th className="pb-3 pr-3 text-left">Canción</th>
+                  <th className="pb-3 pr-3 text-left">Artista</th>
+                  <th className="pb-3 pr-3 text-left">Estado</th>
+                  <th className="w-px pb-3 pr-3"><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -131,20 +105,23 @@ export default function ListaDefecto() {
                   const estado = item.sonadaEn ? "Ya sonó" : i === siguienteIndex ? "Siguiente" : "En espera"
                   return (
                     <tr key={item.id} className={`border-b border-gray-50 ${estado === "Siguiente" ? "bg-red-50" : ""}`}>
-                      <td className="py-3 text-gray-400">{item.posicion}</td>
-                      <td className="py-3 font-medium text-[#0c2944]">{item.titulo}</td>
-                      <td className="py-3 text-gray-500">{item.artista || "—"}</td>
+                      <td className="px-3 py-3 text-gray-400">{item.posicion}</td>
+                      <td className="py-3 pr-3 font-medium text-[#0c2944]">{item.titulo}</td>
+                      <td className="py-3 pr-3 text-gray-500">{item.artista || "—"}</td>
                       <td
-                        className={`py-3 ${estado === "Siguiente" ? "text-[#ba1929] font-bold" : estado === "Ya sonó" ? "text-gray-400" : "text-gray-600"}`}
+                        className={`py-3 pr-3 ${estado === "Siguiente" ? "text-[#ba1929] font-bold" : estado === "Ya sonó" ? "text-gray-400" : "text-gray-600"}`}
                       >
                         {estado}
                       </td>
-                      <td className="py-3 text-right">
+                      <td className="py-3 pr-3 text-right">
                         {estado !== "Ya sonó" && (
                           <button
+                            type="button"
                             onClick={() => quitar.mutate(item.id)}
-                            className="text-xs text-gray-400 hover:text-[#ba1929] transition-colors"
+                            aria-label={`Quitar «${item.titulo}» de la lista`}
+                            className="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:border-red-400 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700"
                           >
+                            <Trash2 aria-hidden="true" className="size-3.5 shrink-0" />
                             Quitar
                           </button>
                         )}
@@ -173,6 +150,15 @@ export default function ListaDefecto() {
           </button>
         </div>
       </div>
+
+      {modalAbierto && (
+        <AgregarCancionModal
+          sesionId={sesion?.id}
+          cancionIdsExistentes={cancionIdsExistentes}
+          onSeleccionar={handleSeleccionar}
+          onClose={() => setModalAbierto(false)}
+        />
+      )}
     </div>
   )
 }

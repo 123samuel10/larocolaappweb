@@ -10,7 +10,7 @@ export function useColaAdminEnVivo(sesionId: string | null) {
 
     const channel = supabase
       .channel(`admin-cola-${sesionId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "solicitud", filter: `sesion_id=eq.${sesionId}` }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "solicitud" }, () => {
         queryClient.invalidateQueries({ queryKey: ["admin", "cola", sesionId] })
         queryClient.invalidateQueries({ queryKey: ["admin", "resumen", sesionId] })
       })

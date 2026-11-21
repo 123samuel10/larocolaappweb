@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react"
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link } from "wouter"
+import { ThumbsUp } from "lucide-react"
 import { useSesionActiva } from "@/features/admin/hooks/useSesionActiva"
 import { useColaAdminEnVivo } from "@/features/admin/hooks/useColaAdminEnVivo"
-import { obtenerColaAdmin, saltarCancion } from "@/db/admin/cola"
+import { useAutoAvanzarCola } from "@/shared/hooks/useAutoAvanzarCola"
+import { BloquearCancionModal } from "@/features/admin/components/BloquearCancionModal"
+import { obtenerColaAdmin, saltarCancion, bloquearCancionYQuitar } from "@/db/admin/cola"
 import { obtenerResumenSesion } from "@/db/admin/estadisticas"
 import { obtenerEstablecimientoPropio } from "@/db/admin/establecimiento"
 import { obtenerHorarios } from "@/db/admin/horarios"
-import { pausarSesion } from "@/db/admin/sesion"
+import { pausarSesion, reanudarSesion } from "@/db/admin/sesion"
 import { diaSemanaActual } from "@/lib/horario"
 import { formatearDuracion } from "@/shared/format/duracion"
 
@@ -23,6 +26,8 @@ function formatHora12(hora: string): string {
 export default function Panel() {
   const { establecimientoId, sesion, isLoading: cargandoSesion, invalidar } = useSesionActiva()
   const [, setTick] = useState(0)
+  const [modalOpen, setModalOpen] = useState(false)
+  const qc = useQueryClient()
 
   const { data: establecimiento } = useQuery({
     queryKey: ["admin", "establecimiento", establecimientoId],
@@ -53,19 +58,44 @@ export default function Panel() {
   const actual = cola.find((i) => i.estado === "reproduciendo") ?? null
   const siguientes = cola.filter((i) => i.estado !== "reproduciendo")
 
+  useAutoAvanzarCola(establecimientoId, actual?.inicioReproduccion, actual?.duracionSeg)
+
   useEffect(() => {
-    if (!actual?.inicioReproduccion) return
+    if (!actual?.inicioReproduccion || sesion?.pausada) return
     const id = setInterval(() => setTick((t) => t + 1), 1000)
     return () => clearInterval(id)
-  }, [actual?.inicioReproduccion])
+  }, [actual?.inicioReproduccion, sesion?.pausada])
 
   const togglePausa = useMutation({
-    mutationFn: () => pausarSesion(sesion!.id, !sesion!.pausada),
+    mutationFn: () => (sesion!.pausada ? reanudarSesion(sesion!.id) : pausarSesion(sesion!.id)),
     onSuccess: invalidar,
   })
 
   const saltar = useMutation({
     mutationFn: () => saltarCancion(sesion!.id, actual?.solicitudId ?? null),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "cola", sesion?.id] })
+      qc.invalidateQueries({ queryKey: ["admin", "resumen", sesion?.id] })
+    },
+  })
+
+  const bloquear = useMutation({
+    mutationFn: async ({ horas, motivo }: { horas: number; motivo: string }) => {
+      if (!actual) return
+      const bloqueadaHasta = new Date(Date.now() + horas * 60 * 60 * 1000).toISOString()
+      await bloquearCancionYQuitar({
+        establecimientoId: establecimientoId!,
+        sesionId: sesion!.id,
+        solicitudActualId: actual.solicitudId,
+        cancionId: actual.cancionId,
+        motivo,
+        bloqueadaHasta,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "cola", sesion?.id] })
+      setModalOpen(false)
+    },
   })
 
   if (cargandoSesion) return null
@@ -83,8 +113,9 @@ export default function Panel() {
       }).format(new Date())
     : ""
 
+  const referenciaMs = sesion?.pausada && sesion.pausadaEn ? new Date(sesion.pausadaEn).getTime() : Date.now()
   const elapsedSeg = actual?.inicioReproduccion
-    ? Math.min(actual.duracionSeg, Math.floor((Date.now() - new Date(actual.inicioReproduccion).getTime()) / 1000))
+    ? Math.min(actual.duracionSeg, Math.max(0, Math.floor((referenciaMs - new Date(actual.inicioReproduccion).getTime()) / 1000)))
     : 0
 
   const estadoLabel = !sesion
@@ -158,7 +189,10 @@ export default function Panel() {
                   <p className="font-medium text-[#0c2944] truncate">{song.titulo}</p>
                   <p className="text-xs text-gray-400 truncate">{song.artista}</p>
                 </div>
-                <span className="text-sm text-gray-500 shrink-0">{song.votos}v</span>
+                <span className="text-sm text-gray-500 shrink-0 inline-flex items-center gap-1">
+                  <ThumbsUp className="size-3.5" aria-hidden="true" />
+                  {song.votos}
+                </span>
               </div>
             ))}
           </div>
@@ -190,13 +224,40 @@ export default function Panel() {
                 >
                   Saltar
                 </button>
+                <button
+                  onClick={() => setModalOpen(true)}
+                  className="flex-1 border border-[#ba1929] text-[#ba1929] rounded-xl py-2 text-sm font-medium hover:bg-[#ba1929]/5 transition-colors"
+                >
+                  Bloquear canción
+                </button>
               </div>
+            </>
+          ) : siguientes.length > 0 ? (
+            <>
+              <p className="text-sm text-gray-400 mb-4">Nada reproduciéndose, pero hay canciones en cola.</p>
+              <button
+                onClick={() => saltar.mutate()}
+                disabled={saltar.isPending}
+                className="w-full bg-[#ba1929] text-white rounded-xl py-2 text-sm font-medium hover:bg-[#a01522] transition-colors disabled:opacity-60"
+              >
+                {saltar.isPending ? "Iniciando…" : "Reproducir siguiente"}
+              </button>
             </>
           ) : (
             <p className="text-sm text-gray-400">Nada reproduciéndose.</p>
           )}
         </div>
       </div>
+
+      {modalOpen && actual && (
+        <BloquearCancionModal
+          titulo={actual.titulo}
+          artista={actual.artista}
+          pendiente={bloquear.isPending}
+          onCancelar={() => setModalOpen(false)}
+          onConfirmar={(horas, motivo) => bloquear.mutate({ horas, motivo })}
+        />
+      )}
     </div>
   )
 }

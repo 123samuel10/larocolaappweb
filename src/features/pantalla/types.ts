@@ -6,6 +6,7 @@ export type ItemCola = {
   duracionSeg: number
   estado: string
   votos: number
+  inicioReproduccion: string | null
 }
 
 export type DatosAccesoLocal = {
@@ -22,4 +23,6 @@ export type DatosPantallaCola = {
   cola: ItemCola[]
   sesionActiva: boolean
   servicioAbierto: boolean
+  pausada: boolean
+  pausadaEn: string | null
 }

@@ -4,6 +4,7 @@ import type { ItemCola } from "@/features/pantalla/types"
 type FilaSolicitud = {
   id: string
   estado: string
+  inicio_reproduccion: string | null
   cancion: {
     titulo: string
     artista: string
@@ -27,21 +28,22 @@ export async function obtenerEstablecimientoActivo(slug: string) {
 
 export async function obtenerColaActiva(
   establecimientoId: string,
-): Promise<{ cola: ItemCola[]; sesionActiva: boolean }> {
+): Promise<{ cola: ItemCola[]; sesionActiva: boolean; pausada: boolean; pausadaEn: string | null }> {
   const { data: sesion } = await supabase
     .from("sesion")
-    .select("id")
+    .select("id, pausada, pausada_en")
     .eq("establecimiento_id", establecimientoId)
     .eq("estado", "activa")
     .maybeSingle()
 
-  if (!sesion) return { cola: [], sesionActiva: false }
+  if (!sesion) return { cola: [], sesionActiva: false, pausada: false, pausadaEn: null }
 
   const { data: solicitudes } = await supabase
     .from("solicitud")
     .select(`
       id,
       estado,
+      inicio_reproduccion,
       cancion!inner(titulo, artista, miniatura_url, duracion_seg),
       voto(id)
     `)
@@ -58,6 +60,7 @@ export async function obtenerColaActiva(
       duracionSeg: solicitud.cancion.duracion_seg,
       estado: solicitud.estado,
       votos: solicitud.voto.length,
+      inicioReproduccion: solicitud.inicio_reproduccion,
     }))
     .sort((a, b) => {
       if (a.estado === "reproduciendo") return -1
@@ -65,5 +68,5 @@ export async function obtenerColaActiva(
       return b.votos - a.votos
     })
 
-  return { cola, sesionActiva: true }
+  return { cola, sesionActiva: true, pausada: sesion.pausada, pausadaEn: sesion.pausada_en }
 }

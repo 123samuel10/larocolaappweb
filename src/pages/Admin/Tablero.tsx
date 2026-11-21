@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { ThumbsUp } from "lucide-react"
 import { Dropdown } from "@/shared/ui/Dropdown"
 import { useAuth } from "@/store/useAuth"
 import { obtenerSesiones } from "@/db/admin/sesion"
-import { obtenerCumplimiento } from "@/db/admin/listaDefecto"
 import {
   obtenerResumenSesion,
   obtenerCancionesTop,
   obtenerParticipacionPorHora,
   obtenerHistorial,
-  obtenerEsperaPromedioSeg,
 } from "@/db/admin/estadisticas"
 
 export default function Tablero() {
@@ -38,12 +37,6 @@ export default function Tablero() {
     enabled: !!sesionId,
   })
 
-  const { data: esperaPromedioSeg } = useQuery({
-    queryKey: ["admin", "espera-promedio", sesionId],
-    queryFn: () => obtenerEsperaPromedioSeg(sesionId!),
-    enabled: !!sesionId,
-  })
-
   const { data: topSongs = [] } = useQuery({
     queryKey: ["admin", "top-canciones", sesionId],
     queryFn: () => obtenerCancionesTop(sesionId!),
@@ -60,12 +53,6 @@ export default function Tablero() {
     queryKey: ["admin", "historial", sesionId],
     queryFn: () => obtenerHistorial(sesionId!),
     enabled: !!sesionId,
-  })
-
-  const { data: cumplimiento } = useQuery({
-    queryKey: ["admin", "cumplimiento-lista-defecto", establecimientoId],
-    queryFn: () => obtenerCumplimiento(establecimientoId!),
-    enabled: !!establecimientoId,
   })
 
   const maxVotes = Math.max(1, ...topSongs.map((s) => s.votos))
@@ -90,15 +77,10 @@ export default function Tablero() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         {[
           { label: "Total solicitudes", value: String(resumen?.totalSolicitudes ?? 0) },
           { label: "Usuarios únicos", value: String(resumen?.usuariosUnicos ?? 0) },
-          {
-            label: "Tiempo de espera promedio",
-            value: esperaPromedioSeg != null ? `${Math.round(esperaPromedioSeg / 60)} min` : "—",
-          },
-          { label: "Lista por defecto", value: cumplimiento != null ? `${cumplimiento}%` : "—" },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-5">
             <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">{s.label}</p>
@@ -121,7 +103,10 @@ export default function Tablero() {
                   <div key={`${song.titulo}-${song.artista}`}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="font-medium text-[#0c2944] truncate">{song.titulo}</span>
-                      <span className="text-gray-500 shrink-0 ml-2">{song.votos}v</span>
+                      <span className="text-gray-500 shrink-0 ml-2 inline-flex items-center gap-1">
+                        <ThumbsUp className="size-3.5" aria-hidden="true" />
+                        {song.votos}
+                      </span>
                     </div>
                     <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
                       <div className={`h-full rounded-full ${isTop ? "bg-[#ba1929]" : "bg-[#133b62]"}`} style={{ width: `${widthPct}%` }} />

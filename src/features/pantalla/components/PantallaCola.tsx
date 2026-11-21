@@ -1,14 +1,17 @@
 import { useColaEnVivo } from "../hooks/useColaEnVivo"
+import { useAutoAvanzarCola } from "@/shared/hooks/useAutoAvanzarCola"
 import type { DatosPantallaCola } from "../types"
 import { CancionDestacada } from "./CancionDestacada"
 import { ListaCola } from "./ListaCola"
 
-export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, rutaAcceso, qrAcceso, establecimientoId }: DatosPantallaCola & { establecimientoId: string }) {
+export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, pausada, pausadaEn, rutaAcceso, qrAcceso, establecimientoId }: DatosPantallaCola & { establecimientoId: string }) {
   useColaEnVivo(establecimientoId)
 
   const reproduciendo = cola.find((i) => i.estado === "reproduciendo")
   const enCola = cola.filter((i) => i.estado === "pendiente")
   const destacada = reproduciendo ?? enCola[0]
+
+  useAutoAvanzarCola(establecimientoId, reproduciendo?.inicioReproduccion, reproduciendo?.duracionSeg)
 
   return (
     <main className="rocola-page min-h-dvh px-5 py-6 sm:px-8 sm:py-8 xl:px-11 xl:py-10">
@@ -20,7 +23,13 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, ruta
         </div>
       )}
       <div className="mx-auto grid max-w-[112rem] gap-8 lg:grid-cols-[minmax(0,2.2fr)_minmax(18rem,1fr)] xl:gap-10">
-        <CancionDestacada nombre={nombre} cancion={destacada} sesionActiva={sesionActiva && servicioAbierto} />
+        <CancionDestacada
+          nombre={nombre}
+          cancion={destacada}
+          sesionActiva={sesionActiva && servicioAbierto}
+          pausada={pausada}
+          pausadaEn={pausadaEn}
+        />
 
         <aside className="flex min-w-0 flex-col gap-6">
           <ListaCola enCola={enCola} sesionActiva={sesionActiva} />

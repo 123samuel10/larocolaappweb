@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useSesionActiva } from "@/features/admin/hooks/useSesionActiva"
 import { obtenerHorarios, guardarHorarioDia } from "@/db/admin/horarios"
-import { abrirSesion, pausarSesion, activarMantenimiento } from "@/db/admin/sesion"
+import { abrirSesion, pausarSesion, reanudarSesion, activarMantenimiento } from "@/db/admin/sesion"
 import { obtenerColaAdmin } from "@/db/admin/cola"
 import type { Horario } from "@/lib/horario"
 
@@ -71,7 +71,7 @@ export default function Horarios() {
 
   const togglePausa = useMutation({
     mutationFn: async () => {
-      if (sesion) return pausarSesion(sesion.id, !sesion.pausada)
+      if (sesion) return sesion.pausada ? reanudarSesion(sesion.id) : pausarSesion(sesion.id)
       return abrirSesion(establecimientoId!)
     },
     onSuccess: invalidar,
