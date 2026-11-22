@@ -142,6 +142,16 @@ export default function Panel() {
           >
             {sesion?.pausada ? "Reanudar servicio" : "Pausar servicio"}
           </button>
+          {establecimiento?.slug && (
+            <a
+              href={`/pantalla/${establecimiento.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="border border-[#133b62] text-[#133b62] rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#133b62]/5 transition-colors"
+            >
+              Ver pantalla
+            </a>
+          )}
           <Link
             to="/admin/reproduccion"
             className="bg-[#ba1929] text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-[#a01522] transition-colors"
