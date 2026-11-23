@@ -17,6 +17,9 @@ export function useColaEnVivo(establecimientoId: string) {
       .on("postgres_changes", { event: "*", schema: "public", table: "lista_defecto_item" }, () => {
         queryClient.invalidateQueries({ queryKey: ["defecto-actual", establecimientoId] })
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sesion" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["cola", establecimientoId] })
+      })
       .subscribe()
 
     return () => {
