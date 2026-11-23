@@ -36,6 +36,7 @@ export function CancionDestacada({ nombre, cancion, sesionActiva, pausada, pausa
             key={cancion.solicitudId}
             youtubeId={cancion.youtubeId}
             startSeconds={elapsedSeg}
+            pausado={pausada}
             onEnded={() => onCancionTerminada?.()}
           />
         ) : cancion?.miniaturaUrl ? (

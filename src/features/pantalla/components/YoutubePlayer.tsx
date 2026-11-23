@@ -4,10 +4,11 @@ type YoutubePlayerProps = {
   youtubeId: string
   onEnded: () => void
   startSeconds?: number
+  pausado?: boolean
 }
 
-export function YoutubePlayer({ youtubeId, onEnded, startSeconds }: YoutubePlayerProps) {
-  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded, startSeconds })
+export function YoutubePlayer({ youtubeId, onEnded, startSeconds, pausado }: YoutubePlayerProps) {
+  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado })
 
   return (
     <div className="absolute inset-0 -z-10 size-full overflow-hidden">

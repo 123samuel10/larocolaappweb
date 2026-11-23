@@ -68,6 +68,6 @@ export async function activarMantenimiento(sesionId: string) {
 
   return supabase
     .from("sesion")
-    .update({ estado: "cerrada", cerrada_en: new Date().toISOString() })
+    .update({ estado: "cerrada", cerrada_en: new Date().toISOString(), en_mantenimiento: true })
     .eq("id", sesionId)
 }

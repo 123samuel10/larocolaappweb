@@ -29,7 +29,7 @@ export async function obtenerEstablecimientoActivo(slug: string) {
 
 export async function obtenerColaActiva(
   establecimientoId: string,
-): Promise<{ cola: ItemCola[]; sesionActiva: boolean; pausada: boolean; pausadaEn: string | null }> {
+): Promise<{ cola: ItemCola[]; sesionActiva: boolean; pausada: boolean; pausadaEn: string | null; enMantenimiento: boolean }> {
   const { data: sesion } = await supabase
     .from("sesion")
     .select("id, pausada, pausada_en")
@@ -37,7 +37,18 @@ export async function obtenerColaActiva(
     .eq("estado", "activa")
     .maybeSingle()
 
-  if (!sesion) return { cola: [], sesionActiva: false, pausada: false, pausadaEn: null }
+  if (!sesion) {
+    const { data: sesionMantenimiento } = await supabase
+      .from("sesion")
+      .select("id")
+      .eq("establecimiento_id", establecimientoId)
+      .eq("en_mantenimiento", true)
+      .order("abierta_en", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    return { cola: [], sesionActiva: false, pausada: false, pausadaEn: null, enMantenimiento: !!sesionMantenimiento }
+  }
 
   const { data: solicitudes } = await supabase
     .from("solicitud")
@@ -70,5 +81,5 @@ export async function obtenerColaActiva(
       return b.votos - a.votos
     })
 
-  return { cola, sesionActiva: true, pausada: sesion.pausada, pausadaEn: sesion.pausada_en }
+  return { cola, sesionActiva: true, pausada: sesion.pausada, pausadaEn: sesion.pausada_en, enMantenimiento: false }
 }

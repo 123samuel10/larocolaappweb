@@ -70,6 +70,7 @@ export function usePantalla(slug: string, currentUrl: string) {
     servicioAbierto,
     pausada: colaQuery.data?.pausada ?? false,
     pausadaEn: colaQuery.data?.pausadaEn ?? null,
+    enMantenimiento: colaQuery.data?.enMantenimiento ?? false,
   }
 
   return { estado: "listo" as const, datos, establecimientoId: establecimiento.id }

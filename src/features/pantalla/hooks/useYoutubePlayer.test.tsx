@@ -10,6 +10,7 @@ let eventosCapturados: EventosCapturados
 let playerInstance: {
   unMute: ReturnType<typeof vi.fn>
   playVideo: ReturnType<typeof vi.fn>
+  pauseVideo: ReturnType<typeof vi.fn>
   destroy: ReturnType<typeof vi.fn>
 }
 
@@ -17,12 +18,14 @@ function Host({
   youtubeId,
   onEnded,
   startSeconds,
+  pausado,
 }: {
   youtubeId: string
   onEnded: () => void
   startSeconds?: number
+  pausado?: boolean
 }) {
-  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded, startSeconds })
+  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado })
   return (
     <div>
       <div ref={containerRef} data-testid="contenedor" />
@@ -37,7 +40,7 @@ function Host({
 describe("useYoutubePlayer", () => {
   beforeEach(() => {
     eventosCapturados = {}
-    playerInstance = { unMute: vi.fn(), playVideo: vi.fn(), destroy: vi.fn() }
+    playerInstance = { unMute: vi.fn(), playVideo: vi.fn(), pauseVideo: vi.fn(), destroy: vi.fn() }
 
     const PlayerMock = vi.fn().mockImplementation((_el: HTMLElement, options: YT.PlayerOptions) => {
       eventosCapturados = options.events ?? {}
@@ -104,6 +107,49 @@ describe("useYoutubePlayer", () => {
 
     const [, opciones] = vi.mocked(window.YT!.Player).mock.calls[0]
     expect(opciones.playerVars?.start).toBe(183)
+  })
+
+  it("unmute() no llama a playVideo() si el servicio está pausado", async () => {
+    const { getByTestId, getByRole } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    act(() => {
+      getByRole("button").click()
+    })
+
+    expect(playerInstance.unMute).toHaveBeenCalledTimes(1)
+    expect(playerInstance.playVideo).not.toHaveBeenCalled()
+    expect(getByTestId("muted").textContent).toBe("false")
+  })
+
+  it("arranca con autoplay deshabilitado cuando pausado es true desde el inicio", async () => {
+    render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    const [, opciones] = vi.mocked(window.YT!.Player).mock.calls[0]
+    expect(opciones.playerVars?.autoplay).toBe(0)
+  })
+
+  it("llama a pauseVideo() cuando pausado pasa de false a true", async () => {
+    const { rerender } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={false} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    rerender(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
+
+    expect(playerInstance.pauseVideo).toHaveBeenCalledTimes(1)
+  })
+
+  it("llama a playVideo() cuando pausado vuelve a false", async () => {
+    const { rerender } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    rerender(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={false} />)
+
+    expect(playerInstance.playVideo).toHaveBeenCalledTimes(1)
   })
 
   it("no invoca onEnded para otros estados del player", async () => {

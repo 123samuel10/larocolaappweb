@@ -7,12 +7,20 @@ import type { DatosPantallaCola } from "../types"
 import { CancionDestacada } from "./CancionDestacada"
 import { ListaCola } from "./ListaCola"
 
-export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, pausada, pausadaEn, rutaAcceso, qrAcceso, establecimientoId }: DatosPantallaCola & { establecimientoId: string }) {
+export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, pausada, pausadaEn, enMantenimiento, rutaAcceso, qrAcceso, establecimientoId }: DatosPantallaCola & { establecimientoId: string }) {
   useColaEnVivo(establecimientoId)
 
   const reproduciendo = cola.find((i) => i.estado === "reproduciendo")
   const enCola = cola.filter((i) => i.estado === "pendiente")
   const colaEnVivoVacia = !reproduciendo && enCola.length === 0
+
+  const motivoNoDisponible = enMantenimiento
+    ? "Servicio en mantenimiento"
+    : !servicioAbierto
+      ? "Servicio cerrado — fuera de horario"
+      : pausada
+        ? "Servicio en pausa"
+        : null
 
   const { data: defectoActual } = useQuery({
     queryKey: ["defecto-actual", establecimientoId],
@@ -28,10 +36,10 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
 
   return (
     <main className="rocola-page min-h-dvh px-5 py-6 sm:px-8 sm:py-8 xl:px-11 xl:py-10">
-      {!servicioAbierto && (
+      {motivoNoDisponible && (
         <div className="mx-auto mb-6 max-w-[112rem] rounded-2xl bg-black/30 px-5 py-3 text-center">
           <p className="text-sm font-semibold text-white/60 tracking-wide uppercase">
-            Servicio cerrado — fuera de horario
+            {motivoNoDisponible}
           </p>
         </div>
       )}

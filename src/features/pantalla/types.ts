@@ -26,4 +26,5 @@ export type DatosPantallaCola = {
   servicioAbierto: boolean
   pausada: boolean
   pausadaEn: string | null
+  enMantenimiento: boolean
 }
