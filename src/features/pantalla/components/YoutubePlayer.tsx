@@ -3,10 +3,11 @@ import { useYoutubePlayer } from "../hooks/useYoutubePlayer"
 type YoutubePlayerProps = {
   youtubeId: string
   onEnded: () => void
+  startSeconds?: number
 }
 
-export function YoutubePlayer({ youtubeId, onEnded }: YoutubePlayerProps) {
-  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded })
+export function YoutubePlayer({ youtubeId, onEnded, startSeconds }: YoutubePlayerProps) {
+  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded, startSeconds })
 
   return (
     <div className="absolute inset-0 -z-10 size-full overflow-hidden">

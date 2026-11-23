@@ -17,6 +17,7 @@ declare global {
       controls?: 0 | 1
       playsinline?: 0 | 1
       rel?: 0 | 1
+      start?: number
     }
 
     interface PlayerEvent {

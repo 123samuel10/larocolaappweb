@@ -13,8 +13,16 @@ let playerInstance: {
   destroy: ReturnType<typeof vi.fn>
 }
 
-function Host({ youtubeId, onEnded }: { youtubeId: string; onEnded: () => void }) {
-  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded })
+function Host({
+  youtubeId,
+  onEnded,
+  startSeconds,
+}: {
+  youtubeId: string
+  onEnded: () => void
+  startSeconds?: number
+}) {
+  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded, startSeconds })
   return (
     <div>
       <div ref={containerRef} data-testid="contenedor" />
@@ -87,6 +95,15 @@ describe("useYoutubePlayer", () => {
 
     const [, opciones] = vi.mocked(window.YT!.Player).mock.calls[0]
     expect(opciones.playerVars?.controls).toBe(0)
+  })
+
+  it("arranca el video en el segundo indicado por startSeconds, redondeando hacia abajo", async () => {
+    render(<Host youtubeId="abc123" onEnded={vi.fn()} startSeconds={183.9} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    const [, opciones] = vi.mocked(window.YT!.Player).mock.calls[0]
+    expect(opciones.playerVars?.start).toBe(183)
   })
 
   it("no invoca onEnded para otros estados del player", async () => {
