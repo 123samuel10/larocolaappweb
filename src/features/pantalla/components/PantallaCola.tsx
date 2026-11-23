@@ -29,6 +29,7 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
   })
 
   const destacada = reproduciendo ?? enCola[0] ?? (colaEnVivoVacia ? (defectoActual ?? undefined) : undefined)
+  const pausadoParaReproductor = pausada || enMantenimiento
 
   const avanzarAhora = useAutoAvanzarCola(establecimientoId, reproduciendo?.inicioReproduccion, reproduciendo?.duracionSeg)
   const avanzarListaDefectoAhora = useAutoAvanzarListaDefecto(establecimientoId, colaEnVivoVacia, defectoActual?.inicioReproduccion, defectoActual?.duracionSeg)
@@ -48,7 +49,7 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
           nombre={nombre}
           cancion={destacada}
           sesionActiva={sesionActiva && servicioAbierto}
-          pausada={pausada}
+          pausada={pausadoParaReproductor}
           pausadaEn={pausadaEn}
           onCancionTerminada={onCancionTerminada}
         />
