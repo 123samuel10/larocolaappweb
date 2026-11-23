@@ -1,0 +1,25 @@
+import { useYoutubePlayer } from "../hooks/useYoutubePlayer"
+
+type YoutubePlayerProps = {
+  youtubeId: string
+  onEnded: () => void
+}
+
+export function YoutubePlayer({ youtubeId, onEnded }: YoutubePlayerProps) {
+  const { containerRef, isMuted, unmute } = useYoutubePlayer({ youtubeId, onEnded })
+
+  return (
+    <div className="absolute inset-0 -z-10 size-full overflow-hidden">
+      <div ref={containerRef} className="size-full" />
+      {isMuted && (
+        <button
+          type="button"
+          onClick={unmute}
+          className="absolute inset-0 grid place-items-center bg-black/60 text-lg font-bold text-white"
+        >
+          Activar sonido
+        </button>
+      )}
+    </div>
+  )
+}

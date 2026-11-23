@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Music } from "lucide-react"
 import { formatearDuracion } from "@/shared/format/duracion"
 import type { ItemCola } from "../types"
+import { YoutubePlayer } from "./YoutubePlayer"
 
 type CancionDestacadaProps = {
   nombre: string
@@ -9,9 +10,10 @@ type CancionDestacadaProps = {
   sesionActiva: boolean
   pausada: boolean
   pausadaEn: string | null
+  onCancionTerminada?: () => void
 }
 
-export function CancionDestacada({ nombre, cancion, sesionActiva, pausada, pausadaEn }: CancionDestacadaProps) {
+export function CancionDestacada({ nombre, cancion, sesionActiva, pausada, pausadaEn, onCancionTerminada }: CancionDestacadaProps) {
   const [, setTick] = useState(0)
 
   useEffect(() => {
@@ -29,7 +31,13 @@ export function CancionDestacada({ nombre, cancion, sesionActiva, pausada, pausa
   return (
     <section aria-labelledby="now-playing-heading" className="min-w-0">
       <div className="rocola-media relative isolate grid aspect-video place-items-center overflow-hidden rounded-[1.25rem]">
-        {cancion?.miniaturaUrl ? (
+        {enVivo && cancion?.youtubeId ? (
+          <YoutubePlayer
+            key={cancion.solicitudId}
+            youtubeId={cancion.youtubeId}
+            onEnded={() => onCancionTerminada?.()}
+          />
+        ) : cancion?.miniaturaUrl ? (
           <img
             src={cancion.miniaturaUrl}
             alt=""

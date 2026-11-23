@@ -11,7 +11,7 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
   const enCola = cola.filter((i) => i.estado === "pendiente")
   const destacada = reproduciendo ?? enCola[0]
 
-  useAutoAvanzarCola(establecimientoId, reproduciendo?.inicioReproduccion, reproduciendo?.duracionSeg)
+  const avanzarAhora = useAutoAvanzarCola(establecimientoId, reproduciendo?.inicioReproduccion, reproduciendo?.duracionSeg)
 
   return (
     <main className="rocola-page min-h-dvh px-5 py-6 sm:px-8 sm:py-8 xl:px-11 xl:py-10">
@@ -29,6 +29,7 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
           sesionActiva={sesionActiva && servicioAbierto}
           pausada={pausada}
           pausadaEn={pausadaEn}
+          onCancionTerminada={avanzarAhora}
         />
 
         <aside className="flex min-w-0 flex-col gap-6">

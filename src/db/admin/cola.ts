@@ -5,6 +5,7 @@ export type ItemColaAdmin = {
   cancionId: string
   titulo: string
   artista: string
+  youtubeId: string
   duracionSeg: number
   estado: "pendiente" | "reproduciendo"
   votos: number
@@ -15,7 +16,7 @@ type FilaSolicitud = {
   id: string
   estado: "pendiente" | "reproduciendo"
   inicio_reproduccion: string | null
-  cancion: { id: string; titulo: string; artista: string; duracion_seg: number }
+  cancion: { id: string; titulo: string; artista: string; youtube_id: string; duracion_seg: number }
   voto: { id: string }[]
 }
 
@@ -26,7 +27,7 @@ export async function obtenerColaAdmin(sesionId: string): Promise<ItemColaAdmin[
       id,
       estado,
       inicio_reproduccion,
-      cancion!inner(id, titulo, artista, duracion_seg),
+      cancion!inner(id, titulo, artista, youtube_id, duracion_seg),
       voto(id)
     `)
     .eq("sesion_id", sesionId)
@@ -38,6 +39,7 @@ export async function obtenerColaAdmin(sesionId: string): Promise<ItemColaAdmin[
     cancionId: s.cancion.id,
     titulo: s.cancion.titulo,
     artista: s.cancion.artista,
+    youtubeId: s.cancion.youtube_id,
     duracionSeg: s.cancion.duracion_seg,
     estado: s.estado,
     votos: s.voto.length,

@@ -2,6 +2,7 @@ export type ItemCola = {
   solicitudId: string
   titulo: string
   artista: string
+  youtubeId: string
   miniaturaUrl: string | null
   duracionSeg: number
   estado: string

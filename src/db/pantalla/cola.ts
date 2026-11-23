@@ -8,6 +8,7 @@ type FilaSolicitud = {
   cancion: {
     titulo: string
     artista: string
+    youtube_id: string
     miniatura_url: string | null
     duracion_seg: number
   }
@@ -44,7 +45,7 @@ export async function obtenerColaActiva(
       id,
       estado,
       inicio_reproduccion,
-      cancion!inner(titulo, artista, miniatura_url, duracion_seg),
+      cancion!inner(titulo, artista, youtube_id, miniatura_url, duracion_seg),
       voto(id)
     `)
     .eq("sesion_id", sesion.id)
@@ -56,6 +57,7 @@ export async function obtenerColaActiva(
       solicitudId: solicitud.id,
       titulo: solicitud.cancion.titulo,
       artista: solicitud.cancion.artista,
+      youtubeId: solicitud.cancion.youtube_id,
       miniaturaUrl: solicitud.cancion.miniatura_url,
       duracionSeg: solicitud.cancion.duracion_seg,
       estado: solicitud.estado,
