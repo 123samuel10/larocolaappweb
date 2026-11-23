@@ -1,5 +1,8 @@
+import { useQuery } from "@tanstack/react-query"
 import { useColaEnVivo } from "../hooks/useColaEnVivo"
 import { useAutoAvanzarCola } from "@/shared/hooks/useAutoAvanzarCola"
+import { useAutoAvanzarListaDefecto } from "@/shared/hooks/useAutoAvanzarListaDefecto"
+import { obtenerCancionDefectoActual } from "@/db/pantalla/listaDefecto"
 import type { DatosPantallaCola } from "../types"
 import { CancionDestacada } from "./CancionDestacada"
 import { ListaCola } from "./ListaCola"
@@ -9,9 +12,19 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
 
   const reproduciendo = cola.find((i) => i.estado === "reproduciendo")
   const enCola = cola.filter((i) => i.estado === "pendiente")
-  const destacada = reproduciendo ?? enCola[0]
+  const colaEnVivoVacia = !reproduciendo && enCola.length === 0
+
+  const { data: defectoActual } = useQuery({
+    queryKey: ["defecto-actual", establecimientoId],
+    queryFn: () => obtenerCancionDefectoActual(establecimientoId),
+    enabled: colaEnVivoVacia,
+  })
+
+  const destacada = reproduciendo ?? enCola[0] ?? (colaEnVivoVacia ? (defectoActual ?? undefined) : undefined)
 
   const avanzarAhora = useAutoAvanzarCola(establecimientoId, reproduciendo?.inicioReproduccion, reproduciendo?.duracionSeg)
+  const avanzarListaDefectoAhora = useAutoAvanzarListaDefecto(establecimientoId, colaEnVivoVacia, defectoActual?.inicioReproduccion, defectoActual?.duracionSeg)
+  const onCancionTerminada = colaEnVivoVacia ? avanzarListaDefectoAhora : avanzarAhora
 
   return (
     <main className="rocola-page min-h-dvh px-5 py-6 sm:px-8 sm:py-8 xl:px-11 xl:py-10">
@@ -29,7 +42,7 @@ export function PantallaCola({ nombre, cola, sesionActiva, servicioAbierto, paus
           sesionActiva={sesionActiva && servicioAbierto}
           pausada={pausada}
           pausadaEn={pausadaEn}
-          onCancionTerminada={avanzarAhora}
+          onCancionTerminada={onCancionTerminada}
         />
 
         <aside className="flex min-w-0 flex-col gap-6">
