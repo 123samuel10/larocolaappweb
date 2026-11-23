@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useYoutubePlayer } from "./useYoutubePlayer"
 
 type EventosCapturados = {
+  onReady?: (event: YT.PlayerEvent) => void
   onStateChange?: (event: YT.OnStateChangeEvent) => void
 }
 
@@ -65,6 +66,7 @@ describe("useYoutubePlayer", () => {
 
     expect(getByTestId("muted").textContent).toBe("true")
     await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+    act(() => eventosCapturados.onReady?.({ target: playerInstance as unknown as YT.Player }))
 
     act(() => {
       getByRole("button").click()
@@ -113,6 +115,7 @@ describe("useYoutubePlayer", () => {
     const { getByTestId, getByRole } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
 
     await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+    act(() => eventosCapturados.onReady?.({ target: playerInstance as unknown as YT.Player }))
 
     act(() => {
       getByRole("button").click()
@@ -136,6 +139,7 @@ describe("useYoutubePlayer", () => {
     const { rerender } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={false} />)
 
     await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+    act(() => eventosCapturados.onReady?.({ target: playerInstance as unknown as YT.Player }))
 
     rerender(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
 
@@ -146,10 +150,26 @@ describe("useYoutubePlayer", () => {
     const { rerender } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
 
     await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+    act(() => eventosCapturados.onReady?.({ target: playerInstance as unknown as YT.Player }))
 
     rerender(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={false} />)
 
     expect(playerInstance.playVideo).toHaveBeenCalledTimes(1)
+  })
+
+  it("no revienta si pausado pasa a true antes de que el player dispare onReady, y lo aplica apenas está listo", async () => {
+    const { rerender } = render(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={false} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    expect(() => {
+      rerender(<Host youtubeId="abc123" onEnded={vi.fn()} pausado={true} />)
+    }).not.toThrow()
+    expect(playerInstance.pauseVideo).not.toHaveBeenCalled()
+
+    act(() => eventosCapturados.onReady?.({ target: playerInstance as unknown as YT.Player }))
+
+    expect(playerInstance.pauseVideo).toHaveBeenCalledTimes(1)
   })
 
   it("no invoca onEnded para otros estados del player", async () => {

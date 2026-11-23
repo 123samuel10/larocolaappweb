@@ -11,6 +11,7 @@ type UseYoutubePlayerParams = {
 export function useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado }: UseYoutubePlayerParams) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const playerRef = useRef<YT.Player | null>(null)
+  const isReadyRef = useRef(false)
   const [isMuted, setIsMuted] = useState(true)
   const onEndedRef = useRef(onEnded)
   onEndedRef.current = onEnded
@@ -24,6 +25,7 @@ export function useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado }: 
 
     let activo = true
     setIsMuted(true)
+    isReadyRef.current = false
 
     cargarYoutubeIframeApi().then((api) => {
       if (!activo || !containerRef.current) return
@@ -39,6 +41,13 @@ export function useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado }: 
           start: Math.max(0, Math.floor(startSecondsRef.current ?? 0)),
         },
         events: {
+          // La API no adjunta métodos como pauseVideo()/playVideo() hasta este evento;
+          // llamarlos antes revienta con "no es una función". Si pausado ya cambió
+          // mientras esperábamos, aplicalo recién acá.
+          onReady: () => {
+            isReadyRef.current = true
+            if (pausadoRef.current) playerRef.current?.pauseVideo()
+          },
           onStateChange: (event) => {
             if (event.data === api.PlayerState.ENDED) onEndedRef.current?.()
           },
@@ -54,7 +63,7 @@ export function useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado }: 
   }, [youtubeId])
 
   useEffect(() => {
-    if (!playerRef.current) return
+    if (!playerRef.current || !isReadyRef.current) return
     if (pausado) {
       playerRef.current.pauseVideo()
     } else {
@@ -63,8 +72,9 @@ export function useYoutubePlayer({ youtubeId, onEnded, startSeconds, pausado }: 
   }, [pausado])
 
   const unmute = useCallback(() => {
-    playerRef.current?.unMute()
-    if (!pausadoRef.current) playerRef.current?.playVideo()
+    if (!playerRef.current || !isReadyRef.current) return
+    playerRef.current.unMute()
+    if (!pausadoRef.current) playerRef.current.playVideo()
     setIsMuted(false)
   }, [])
 
