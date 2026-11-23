@@ -80,6 +80,15 @@ describe("useYoutubePlayer", () => {
     expect(onEnded).toHaveBeenCalledTimes(1)
   })
 
+  it("deshabilita los controles nativos para que no se pueda pausar manualmente", async () => {
+    render(<Host youtubeId="abc123" onEnded={vi.fn()} />)
+
+    await waitFor(() => expect(window.YT!.Player).toHaveBeenCalled())
+
+    const [, opciones] = vi.mocked(window.YT!.Player).mock.calls[0]
+    expect(opciones.playerVars?.controls).toBe(0)
+  })
+
   it("no invoca onEnded para otros estados del player", async () => {
     const onEnded = vi.fn()
     render(<Host youtubeId="abc123" onEnded={onEnded} />)

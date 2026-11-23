@@ -10,7 +10,7 @@ export function YoutubePlayer({ youtubeId, onEnded }: YoutubePlayerProps) {
 
   return (
     <div className="absolute inset-0 -z-10 size-full overflow-hidden">
-      <div ref={containerRef} className="size-full" />
+      <div ref={containerRef} data-testid="youtube-contenedor" className="pointer-events-none size-full" />
       {isMuted && (
         <button
           type="button"

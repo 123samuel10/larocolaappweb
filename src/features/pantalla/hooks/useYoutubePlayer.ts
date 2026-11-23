@@ -24,7 +24,7 @@ export function useYoutubePlayer({ youtubeId, onEnded }: UseYoutubePlayerParams)
 
       playerRef.current = new api.Player(containerRef.current, {
         videoId: youtubeId,
-        playerVars: { autoplay: 1, mute: 1, playsinline: 1, rel: 0 },
+        playerVars: { autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0 },
         events: {
           onStateChange: (event) => {
             if (event.data === api.PlayerState.ENDED) onEndedRef.current?.()
