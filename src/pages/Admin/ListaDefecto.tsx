@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, RotateCcw, Trash2 } from "lucide-react"
 import { useSesionActiva } from "@/features/admin/hooks/useSesionActiva"
 import { AgregarCancionModal } from "@/features/admin/components/AgregarCancionModal"
-import { obtenerListaDefecto, agregarCancionALista, quitarDeLista, reordenarLista } from "@/db/admin/listaDefecto"
+import { obtenerListaDefecto, agregarCancionALista, marcarSonada, quitarDeLista, reordenarLista } from "@/db/admin/listaDefecto"
 import type { ResultadoBusqueda } from "@/db/admin/busqueda"
 
 export default function ListaDefecto() {
@@ -32,6 +32,11 @@ export default function ListaDefecto() {
 
   const quitar = useMutation({
     mutationFn: quitarDeLista,
+    onSuccess: invalidarLista,
+  })
+
+  const repetir = useMutation({
+    mutationFn: marcarSonada,
     onSuccess: invalidarLista,
   })
 
@@ -111,10 +116,21 @@ export default function ListaDefecto() {
                       <td
                         className={`py-3 pr-3 ${estado === "Siguiente" ? "text-[#ba1929] font-bold" : estado === "Ya sonó" ? "text-gray-400" : "text-gray-600"}`}
                       >
-                        {estado}
+                        {estado === "Ya sonó" && item.vecesSonada > 0 ? `${estado} · ×${item.vecesSonada}` : estado}
                       </td>
                       <td className="py-3 pr-3 text-right">
-                        {estado !== "Ya sonó" && (
+                        {estado === "Ya sonó" ? (
+                          <button
+                            type="button"
+                            onClick={() => repetir.mutate(item.id)}
+                            disabled={repetir.isPending}
+                            aria-label={`Repetir «${item.titulo}»`}
+                            className="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#133b62]/30 bg-white px-3 py-1.5 text-xs font-medium text-[#133b62] transition-colors hover:border-[#133b62]/60 hover:bg-[#133b62]/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#133b62] disabled:opacity-60"
+                          >
+                            <RotateCcw aria-hidden="true" className="size-3.5 shrink-0" />
+                            Repetir
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => quitar.mutate(item.id)}
