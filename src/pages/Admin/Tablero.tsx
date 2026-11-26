@@ -146,7 +146,7 @@ export default function Tablero() {
           {sesion.metricas.estado === "activa" && <p className="text-xs text-slate-600">Sesión en curso · Datos parciales al último corte.</p>}
           {vista === "descriptiva"
             ? <Descriptiva sesion={sesion} canciones={datos.canciones} franjas={datos.franjas} />
-            : <Diagnostica canciones={datos.canciones} franjas={datos.franjas} />}
+            : <Diagnostica franjas={datos.franjas} />}
         </>
       )}
     </div>
