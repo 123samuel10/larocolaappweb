@@ -79,10 +79,11 @@ describe("Tablero de analítica", () => {
     expect(screen.getByText("Última publicación")).toBeTruthy()
 
     fireEvent.click(screen.getByRole("button", { name: "Diagnóstica" }))
+    expect(screen.getByText("Concentración de votos")).toBeTruthy()
     expect(screen.getByText("26/11 · 00:00")).toBeTruthy()
 
     fireEvent.click(screen.getByRole("button", { name: "Comparativa" }))
-    expect(screen.getByText("Participación comparada")).toBeTruthy()
+    expect(screen.getByRole("table")).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText("Noche desde"), { target: { value: "2026-11-22" } })
     await waitFor(() => expect(invocar).toHaveBeenCalledWith("leer-analitica", expect.objectContaining({

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import type { FilaAnalitica } from "@/db/admin/analitica"
-import { dias, etiquetaFranja, etiquetaSesion, nocheLocal, numero } from "./format"
+import { dias, etiquetaFranja, etiquetaSesion, nocheLocal, numero, porcentaje } from "./format"
 
 type Sesion = FilaAnalitica<"session">
 type Cancion = FilaAnalitica<"song">
@@ -127,42 +127,76 @@ export function Descriptiva({ sesion, canciones, franjas }: {
   )
 }
 
-export function Diagnostica({ franjas }: { franjas: Franja[] }) {
+export function Diagnostica({ canciones, franjas }: { canciones: Cancion[]; franjas: Franja[] }) {
+  const masVotadas = canciones
+    .filter(({ metricas }) => metricas.votos_vigentes > 0)
+    .sort((a, b) => b.metricas.votos_vigentes - a.metricas.votos_vigentes || a.row_key.localeCompare(b.row_key))
+    .slice(0, 5)
+  const cuotaTop = masVotadas.slice(0, 3).reduce((suma, { metricas }) => suma + (metricas.cuota_votos ?? 0), 0)
   const sinActividad = franjas.filter(({ metricas }) =>
     metricas.solicitudes === 0 && metricas.altas_de_votos_aun_vigentes === 0,
   )
 
   return (
-    <Tarjeta titulo="Franjas sin actividad registrada">
-      {sinActividad.length ? (
-        <>
-          <p className="mb-3 text-sm text-slate-600">
-            {numero.format(sinActividad.length)} de {numero.format(franjas.length)} franjas sin solicitudes ni altas de votos aún vigentes.
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {sinActividad.map(({ row_key, metricas }) => (
-              <li key={row_key} className="rounded-lg bg-[#e9f0f7] px-3 py-1.5 text-xs font-medium text-[#0c2944]">
-                {etiquetaFranja(metricas.franja_local)}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : <EstadoVacio>{franjas.length ? "Todas las franjas tienen actividad registrada." : "Esta sesión no tiene franjas publicadas."}</EstadoVacio>}
-    </Tarjeta>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Tarjeta titulo="Concentración de votos">
+        {masVotadas.length ? (
+          <>
+            <p className="mb-4 text-sm text-slate-600">
+              <strong className="text-[#0c2944]">{porcentaje.format(cuotaTop)}</strong> de los votos vigentes en las
+              {" "}{masVotadas.length < 3 ? "canciones con votos" : "tres canciones más votadas"}.
+            </p>
+            <ul className="space-y-3">
+              {masVotadas.map(({ row_key, metricas }) => (
+                <li key={row_key}>
+                  <div className="mb-1.5 flex justify-between gap-3">
+                    <span className="min-w-0 wrap-break-word text-[#0c2944]">{metricas.titulo}</span>
+                    <span className="shrink-0 font-semibold tabular-nums">{porcentaje.format(metricas.cuota_votos ?? 0)}</span>
+                  </div>
+                  <div aria-hidden="true" className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-[#ba1929]"
+                      style={{ width: `${(metricas.cuota_votos ?? 0) * 100}%` }} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : <EstadoVacio>Sin votos vigentes para calcular la concentración.</EstadoVacio>}
+      </Tarjeta>
+      <Tarjeta titulo="Franjas sin actividad registrada">
+        {sinActividad.length ? (
+          <>
+            <p className="mb-3 text-sm text-slate-600">
+              {numero.format(sinActividad.length)} de {numero.format(franjas.length)} franjas sin solicitudes ni altas de votos aún vigentes.
+            </p>
+            <ul className="flex flex-wrap gap-2">
+              {sinActividad.map(({ row_key, metricas }) => (
+                <li key={row_key} className="rounded-lg bg-[#e9f0f7] px-3 py-1.5 text-xs font-medium text-[#0c2944]">
+                  {etiquetaFranja(metricas.franja_local)}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : <EstadoVacio>{franjas.length ? "Todas las franjas tienen actividad registrada." : "Esta sesión no tiene franjas publicadas."}</EstadoVacio>}
+      </Tarjeta>
+    </div>
   )
 }
 
 export type Agrupacion = "sesion" | "noche" | "dia"
 
 export function Comparativa({ sesiones, agrupacion }: { sesiones: Sesion[]; agrupacion: Agrupacion }) {
-  const grupos = new Map<string, Actividad>()
+  const grupos = new Map<string, Actividad & { sesiones: number; dispositivos: number; parciales: number }>()
   for (const sesion of sesiones) {
     const { metricas } = sesion
     const clave = agrupacion === "sesion" ? sesion.sesion_id : agrupacion === "noche" ? sesion.noche : String(metricas.dia_semana)
     const etiqueta = agrupacion === "sesion" ? etiquetaSesion(sesion) : agrupacion === "noche" ? nocheLocal(sesion.noche) : dias[metricas.dia_semana]
-    const fila = grupos.get(clave) ?? { etiqueta, solicitudes: 0, votos: 0 }
+    const fila = grupos.get(clave) ?? { etiqueta, solicitudes: 0, votos: 0, sesiones: 0, dispositivos: 0, parciales: 0 }
     fila.solicitudes += metricas.solicitudes
     fila.votos += metricas.votos_vigentes
+    fila.dispositivos += metricas.dispositivos_unicos
+    fila.parciales += Number(metricas.estado === "activa")
+    fila.sesiones += 1
     grupos.set(clave, fila)
   }
 
@@ -174,7 +208,34 @@ export function Comparativa({ sesiones, agrupacion }: { sesiones: Sesion[]; agru
   return (
     <Tarjeta titulo="Participación comparada">
       <GraficoActividad datos={serie} etiquetaVotos="Votos vigentes" />
-      {filas.length > 12 && <p className="mt-3 text-xs text-slate-500">El gráfico muestra los 12 períodos más recientes.</p>}
+      {filas.length > 12 && <p className="mb-3 text-xs text-slate-500">El gráfico muestra los 12 períodos más recientes.</p>}
+      <div className="max-h-96 overflow-auto" tabIndex={0} aria-label="Detalle de la comparación">
+        <table className="w-full min-w-max text-left text-sm">
+          <thead className="border-b border-slate-200 text-xs text-slate-600">
+            <tr>
+              <th scope="col" className="px-2 py-2">Período</th>
+              <th scope="col" className="px-2 py-2 text-right">Sesiones</th>
+              <th scope="col" className="px-2 py-2 text-right">Solicitudes</th>
+              <th scope="col" className="px-2 py-2 text-right">Votos vigentes</th>
+              <th scope="col" className="px-2 py-2 text-right">{agrupacion === "sesion" ? "Dispositivos únicos" : "Dispositivos promedio por sesión"}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filas.map(([clave, fila]) => (
+              <tr key={clave} className="tabular-nums">
+                <th scope="row" className="px-2 py-3 font-medium text-[#0c2944]">
+                  {fila.etiqueta}
+                  {fila.parciales > 0 && <span className="block text-xs font-normal text-slate-500">{agrupacion === "sesion" ? "Sesión en curso" : `${fila.parciales} en curso`}</span>}
+                </th>
+                <td className="px-2 py-3 text-right">{numero.format(fila.sesiones)}</td>
+                <td className="px-2 py-3 text-right">{numero.format(fila.solicitudes)}</td>
+                <td className="px-2 py-3 text-right">{numero.format(fila.votos)}</td>
+                <td className="px-2 py-3 text-right">{numero.format(fila.dispositivos / fila.sesiones)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Tarjeta>
   )
 }
