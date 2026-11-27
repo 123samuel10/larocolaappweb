@@ -1,4 +1,3 @@
-import { lazy, Suspense } from "react"
 import { Route, Switch, Redirect } from "wouter"
 import { useAuth } from "@/store/useAuth"
 import AdminLayout from "@/components/Layout/AdminLayout"
@@ -6,7 +5,7 @@ import Panel from "./Panel"
 import Reproduccion from "./Reproduccion"
 import ListaDefecto from "./ListaDefecto"
 import Horarios from "./Horarios"
-const Tablero = lazy(() => import("./Tablero"))
+import Tablero from "./Tablero"
 
 export default function AdminApp() {
   const { admin, loading } = useAuth()
@@ -21,11 +20,7 @@ export default function AdminApp() {
         <Route path="/admin/reproduccion" component={Reproduccion} />
         <Route path="/admin/lista-defecto" component={ListaDefecto} />
         <Route path="/admin/horarios" component={Horarios} />
-        <Route path="/admin/tablero">
-          <Suspense fallback={<p role="status" className="p-6 text-slate-600">Cargando tablero…</p>}>
-            <Tablero />
-          </Suspense>
-        </Route>
+        <Route path="/admin/tablero" component={Tablero} />
       </Switch>
     </AdminLayout>
   )

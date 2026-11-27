@@ -1,154 +1,156 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Activity, CalendarDays, ChartNoAxesColumn, RefreshCw } from "lucide-react"
-import { useAuth } from "@/store/useAuth"
-import { obtenerTableroAnalitico, PublicacionActualizada } from "@/db/admin/analitica"
+import { ThumbsUp } from "lucide-react"
 import { Dropdown } from "@/shared/ui/Dropdown"
-import { Comparativa, Descriptiva, Diagnostica, Tarjeta, type Agrupacion } from "@/features/admin/analytics/AnaliticaVistas"
-import { etiquetaSesion, fechaHora } from "@/features/admin/analytics/format"
-
-const vistas = [
-  { id: "descriptiva", nombre: "Descriptiva", icono: ChartNoAxesColumn },
-  { id: "diagnostica", nombre: "Diagnóstica", icono: Activity },
-  { id: "comparativa", nombre: "Comparativa", icono: CalendarDays },
-] as const
-
-const grupos = [
-  { value: "sesion", label: "Por sesión" },
-  { value: "noche", label: "Por noche" },
-  { value: "dia", label: "Por día de la semana" },
-] satisfies { value: Agrupacion; label: string }[]
-
-function mensajeError(error: unknown) {
-  const codigo = typeof error === "object" && error && "code" in error ? error.code : null
-  if (codigo === "analitica_no_configurada") return "La consulta de analítica aún no está habilitada en Supabase."
-  if (codigo === "acceso_denegado") return "Tu cuenta no tiene acceso a la analítica de este establecimiento."
-  if (error instanceof PublicacionActualizada) return "Se está actualizando la publicación. Intenta consultar de nuevo."
-  return "Ocurrió un problema al consultar las estadísticas."
-}
+import { useAuth } from "@/store/useAuth"
+import { obtenerSesiones } from "@/db/admin/sesion"
+import {
+  obtenerResumenSesion,
+  obtenerCancionesTop,
+  obtenerParticipacionPorHora,
+  obtenerHistorial,
+} from "@/db/admin/estadisticas"
 
 export default function Tablero() {
   const { admin } = useAuth()
-  const establecimientoId = admin?.establecimientoId
-  const [desde, setDesde] = useState("")
-  const [hasta, setHasta] = useState("")
+  const establecimientoId = admin?.establecimientoId ?? null
   const [sesionId, setSesionId] = useState<string | null>(null)
-  const [vista, setVista] = useState<(typeof vistas)[number]["id"]>("descriptiva")
-  const [agrupacion, setAgrupacion] = useState<Agrupacion>("sesion")
-  const rangoValido = !desde || !hasta || desde <= hasta
 
-  const analitica = useQuery({
-    queryKey: ["admin", "analitica", establecimientoId, desde, hasta, sesionId],
-    queryFn: ({ signal }) => obtenerTableroAnalitico({ desde, hasta }, sesionId, signal),
-    enabled: Boolean(establecimientoId) && rangoValido,
-    refetchInterval: 5 * 60 * 1000,
-    retry: (intento, error) => error instanceof PublicacionActualizada && intento < 2,
+  const { data: sesiones = [] } = useQuery({
+    queryKey: ["admin", "sesiones", establecimientoId],
+    queryFn: () => obtenerSesiones(establecimientoId!),
+    enabled: !!establecimientoId,
   })
 
-  const datos = analitica.data
-  const sesion = datos?.sesion
-  const ultimaPublicacion = datos?.corte.publicado_en
-  const zonaHoraria = sesion?.metricas.zona_horaria ?? "America/Bogota"
-  const opcionesSesion = datos?.sesiones.map((fila) => ({
-    value: fila.sesion_id,
-    label: etiquetaSesion(fila),
-  })) ?? []
+  useEffect(() => {
+    if (!sesionId && sesiones.length > 0) setSesionId(sesiones[0].id)
+  }, [sesiones, sesionId])
+
+  const opcionesSesion = sesiones.map((s) => ({
+    value: s.id,
+    label: new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(s.abiertaEn)),
+  }))
+
+  const { data: resumen } = useQuery({
+    queryKey: ["admin", "resumen", sesionId],
+    queryFn: () => obtenerResumenSesion(sesionId!),
+    enabled: !!sesionId,
+  })
+
+  const { data: topSongs = [] } = useQuery({
+    queryKey: ["admin", "top-canciones", sesionId],
+    queryFn: () => obtenerCancionesTop(sesionId!),
+    enabled: !!sesionId,
+  })
+
+  const { data: participacion = [] } = useQuery({
+    queryKey: ["admin", "participacion", sesionId],
+    queryFn: () => obtenerParticipacionPorHora(sesionId!),
+    enabled: !!sesionId,
+  })
+
+  const { data: historial = [] } = useQuery({
+    queryKey: ["admin", "historial", sesionId],
+    queryFn: () => obtenerHistorial(sesionId!),
+    enabled: !!sesionId,
+  })
+
+  const maxVotes = Math.max(1, ...topSongs.map((s) => s.votos))
+  const maxParticipacion = Math.max(1, ...participacion.map((p) => p.solicitudes))
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+    <div className="p-8">
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="rocola-display text-2xl text-[#0c2944] sm:text-3xl">Tablero de analítica</h1>
-          <p className="mt-1 text-sm text-slate-600">Solicitudes, votación y participación en tu establecimiento.</p>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Tablero de la sesion</h1>
+          <p className="text-sm text-gray-500 mt-1">Resumen de actividad de la noche</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {ultimaPublicacion && (
-            <p className="px-1 text-xs text-slate-600">
-              Última publicación <time className="font-semibold text-[#0c2944]" dateTime={ultimaPublicacion}>
-                {fechaHora(ultimaPublicacion, zonaHoraria)}
-              </time>
-            </p>
-          )}
-          <button type="button" onClick={() => void analitica.refetch()}
-            disabled={analitica.isFetching || !rangoValido || !establecimientoId}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[#a4adba] bg-white px-3 text-sm font-medium text-[#0c2944] hover:border-[#133b62] focus-visible:outline-2 focus-visible:outline-[#133b62] disabled:cursor-default disabled:opacity-55">
-            <RefreshCw aria-hidden className={`size-4 ${analitica.isFetching ? "motion-safe:animate-spin" : ""}`} />
-            Actualizar
-          </button>
-        </div>
-      </header>
-
-      <div className="rounded-2xl border border-black/5 bg-white p-4">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,2fr)]">
-          <label className="grid min-w-0 gap-1 text-xs font-medium text-[#0c2944]">
-            Noche desde
-            <input type="date" value={desde} max={hasta || undefined}
-              onChange={(event) => { setDesde(event.target.value); setSesionId(null) }}
-              className="rocola-input min-w-0 text-sm" />
+        <div className="flex items-center gap-3 mt-1">
+          <label id="sesion-tablero-label" htmlFor="sesion-tablero" className="text-xs uppercase tracking-widest text-gray-400">
+            Sesión
           </label>
-          <label className="grid min-w-0 gap-1 text-xs font-medium text-[#0c2944]">
-            Noche hasta
-            <input type="date" value={hasta} min={desde || undefined}
-              onChange={(event) => { setHasta(event.target.value); setSesionId(null) }}
-              className="rocola-input min-w-0 text-sm" />
-          </label>
-          {vista !== "comparativa" && (
-            <div className="grid min-w-0 gap-1 sm:col-span-2 xl:col-span-1">
-              <label id="sesion-analitica-label" htmlFor="sesion-analitica" className="text-xs font-medium text-[#0c2944]">Sesión</label>
-              <Dropdown id="sesion-analitica" value={sesion?.sesion_id ?? ""} options={opcionesSesion}
-                placeholder="Sin sesiones en el período" onChange={setSesionId} />
-            </div>
-          )}
-          {vista === "comparativa" && (
-            <div className="grid min-w-0 gap-1 sm:col-span-2 xl:col-span-1">
-              <label id="grupo-analitica-label" htmlFor="grupo-analitica" className="text-xs font-medium text-[#0c2944]">Agrupar</label>
-              <Dropdown id="grupo-analitica" options={grupos} value={agrupacion}
-                onChange={(valor) => setAgrupacion(grupos.find(({ value }) => value === valor)?.value ?? "sesion")} />
-            </div>
+          {opcionesSesion.length > 0 ? (
+            <Dropdown id="sesion-tablero" value={sesionId ?? ""} options={opcionesSesion} onChange={setSesionId} />
+          ) : (
+            <span className="text-sm text-gray-400">Sin sesiones aún</span>
           )}
         </div>
       </div>
 
-      <div role="group" aria-label="Tipo de analítica" className="flex flex-wrap gap-2">
-        {vistas.map(({ id, nombre, icono: Icono }) => (
-          <button key={id} type="button" aria-pressed={vista === id} onClick={() => setVista(id)}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[#0c2944]/15 bg-white px-3 text-sm font-medium text-[#0c2944] hover:border-[#133b62] focus-visible:outline-2 focus-visible:outline-[#133b62] aria-pressed:border-[#0c2944] aria-pressed:bg-[#0c2944] aria-pressed:text-white">
-            <Icono aria-hidden className="size-4" />
-            {nombre}
-          </button>
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        {[
+          { label: "Total solicitudes", value: String(resumen?.totalSolicitudes ?? 0) },
+          { label: "Usuarios únicos", value: String(resumen?.usuariosUnicos ?? 0) },
+        ].map((s) => (
+          <div key={s.label} className="bg-white rounded-2xl p-5">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">{s.label}</p>
+            <p className="text-xl font-bold text-[#0c2944]">{s.value}</p>
+          </div>
         ))}
       </div>
 
-      {!establecimientoId ? (
-        <Tarjeta titulo="Establecimiento sin asignar">
-          <p className="text-sm text-slate-600">Tu cuenta necesita un establecimiento asociado para consultar estadísticas.</p>
-        </Tarjeta>
-      ) : !rangoValido ? (
-        <p role="alert" className="rounded-xl bg-white p-4 text-sm text-[#a41423]">La noche inicial debe ser anterior o igual a la final.</p>
-      ) : analitica.isPending ? (
-        <p role="status" className="rounded-xl bg-white p-4 text-sm text-slate-600">Cargando estadísticas…</p>
-      ) : analitica.isError ? (
-        <Tarjeta titulo="Estadísticas no disponibles">
-          <p role="alert" className="text-sm text-slate-600">{mensajeError(analitica.error)}</p>
-        </Tarjeta>
-      ) : !datos?.corte.version ? (
-        <Tarjeta titulo="A la espera de la primera publicación">
-          <p className="text-sm text-slate-600">El tablero mostrará los indicadores cuando el pipeline publique su primer lote.</p>
-        </Tarjeta>
-      ) : !sesion ? (
-        <Tarjeta titulo="Sin sesiones en el período">
-          <p className="text-sm text-slate-600">Prueba con otro rango de noches para consultar las sesiones publicadas.</p>
-        </Tarjeta>
-      ) : vista === "comparativa" ? (
-        <Comparativa sesiones={datos.sesiones} agrupacion={agrupacion} />
-      ) : (
-        <>
-          {sesion.metricas.estado === "activa" && <p className="text-xs text-slate-600">Sesión en curso · Datos parciales al último corte.</p>}
-          {vista === "descriptiva"
-            ? <Descriptiva sesion={sesion} canciones={datos.canciones} franjas={datos.franjas} />
-            : <Diagnostica canciones={datos.canciones} franjas={datos.franjas} />}
-        </>
-      )}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl p-6">
+          <p className="font-bold text-[#0c2944] mb-4">Canciones mas pedidas</p>
+          {topSongs.length === 0 ? (
+            <p className="text-sm text-gray-400">No hay canciones pedidas todavía.</p>
+          ) : (
+            <div className="space-y-4">
+              {topSongs.map((song) => {
+                const widthPct = Math.round((song.votos / maxVotes) * 100)
+                const isTop = song.votos === maxVotes
+                return (
+                  <div key={`${song.titulo}-${song.artista}`}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-[#0c2944] truncate">{song.titulo}</span>
+                      <span className="text-gray-500 shrink-0 ml-2 inline-flex items-center gap-1">
+                        <ThumbsUp className="size-3.5" aria-hidden="true" />
+                        {song.votos}
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div className={`h-full rounded-full ${isTop ? "bg-[#ba1929]" : "bg-[#133b62]"}`} style={{ width: `${widthPct}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-4">Concentracion de votos de la noche</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6">
+          <p className="font-bold text-[#0c2944] mb-4">Participacion por hora</p>
+          {participacion.length === 0 ? (
+            <p className="text-sm text-gray-400 mb-6">Sin actividad registrada.</p>
+          ) : (
+            <div className="flex items-end gap-3 h-32 mb-6">
+              {participacion.map((bar) => {
+                const heightPct = Math.round((bar.solicitudes / maxParticipacion) * 100)
+                return (
+                  <div key={bar.hora} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className={`w-full rounded-t ${bar.solicitudes === maxParticipacion ? "bg-[#ba1929]" : "bg-[#133b62]"}`}
+                      style={{ height: `${heightPct}%` }}
+                    />
+                    <span className="text-xs text-gray-400">{bar.hora}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <h4 className="font-bold text-[#0c2944] text-sm mb-3">Historial de reproduccion</h4>
+          <div className="space-y-2">
+            {historial.length === 0 && <p className="text-sm text-gray-400">Sin historial aún.</p>}
+            {historial.map((item, i) => (
+              <p key={i} className="text-sm text-gray-600">
+                <span className="text-gray-400">{item.estado === "reproducida" ? "Reproducida" : "Saltada/bloqueada"}</span>
+                {" — "}{item.titulo}
+              </p>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
