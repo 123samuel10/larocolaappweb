@@ -3,13 +3,17 @@ import { useQuery } from "@tanstack/react-query"
 import { ThumbsUp } from "lucide-react"
 import { Dropdown } from "@/shared/ui/Dropdown"
 import { useAuth } from "@/store/useAuth"
+import { obtenerEstablecimientoPropio } from "@/db/admin/establecimiento"
 import { obtenerSesiones } from "@/db/admin/sesion"
 import {
-  obtenerResumenSesion,
   obtenerCancionesTop,
-  obtenerParticipacionPorHora,
+  obtenerSolicitudesPorHora,
   obtenerHistorial,
 } from "@/db/admin/estadisticas"
+
+function etiquetaFranja(hora: number) {
+  return `${String(hora).padStart(2, "0")}:00–${String(hora).padStart(2, "0")}:59`
+}
 
 export default function Tablero() {
   const { admin } = useAuth()
@@ -31,21 +35,22 @@ export default function Tablero() {
     label: new Intl.DateTimeFormat("es-CO", { weekday: "long", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(s.abiertaEn)),
   }))
 
-  const { data: resumen } = useQuery({
-    queryKey: ["admin", "resumen", sesionId],
-    queryFn: () => obtenerResumenSesion(sesionId!),
-    enabled: !!sesionId,
+  const establecimiento = useQuery({
+    queryKey: ["admin", "establecimiento", establecimientoId],
+    queryFn: () => obtenerEstablecimientoPropio(establecimientoId!),
+    enabled: !!establecimientoId,
+  })
+  const zonaHoraria = establecimiento.data?.zonaHoraria
+
+  const solicitudes = useQuery({
+    queryKey: ["admin", "solicitudes-por-hora", sesionId, zonaHoraria],
+    queryFn: () => obtenerSolicitudesPorHora(sesionId!, zonaHoraria!),
+    enabled: !!sesionId && !!zonaHoraria,
   })
 
   const { data: topSongs = [] } = useQuery({
     queryKey: ["admin", "top-canciones", sesionId],
     queryFn: () => obtenerCancionesTop(sesionId!),
-    enabled: !!sesionId,
-  })
-
-  const { data: participacion = [] } = useQuery({
-    queryKey: ["admin", "participacion", sesionId],
-    queryFn: () => obtenerParticipacionPorHora(sesionId!),
     enabled: !!sesionId,
   })
 
@@ -56,13 +61,20 @@ export default function Tablero() {
   })
 
   const maxVotes = Math.max(1, ...topSongs.map((s) => s.votos))
-  const maxParticipacion = Math.max(1, ...participacion.map((p) => p.solicitudes))
+  const franjas = solicitudes.data?.franjas ?? []
+  const maxSolicitudes = Math.max(0, ...franjas.map((franja) => franja.cantidad))
+  const franjasPico = franjas.filter((franja) => franja.cantidad === maxSolicitudes)
+  const mensajeSolicitudes = !sesionId
+    ? "Selecciona una sesión."
+    : establecimiento.isError || (establecimiento.isSuccess && !zonaHoraria) || solicitudes.isError
+      ? "No se pudieron cargar las solicitudes."
+      : "Cargando solicitudes…"
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-start mb-6">
+    <div className="p-4 sm:p-8">
+      <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div>
-          <h1 className="rocola-display text-xl text-[#0c2944]">Tablero de la sesion</h1>
+          <h1 className="rocola-display text-xl text-[#0c2944]">Tablero de la sesión</h1>
           <p className="text-sm text-gray-500 mt-1">Resumen de actividad de la noche</p>
         </div>
         <div className="flex items-center gap-3 mt-1">
@@ -77,21 +89,34 @@ export default function Tablero() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        {[
-          { label: "Total solicitudes", value: String(resumen?.totalSolicitudes ?? 0) },
-          { label: "Usuarios únicos", value: String(resumen?.usuariosUnicos ?? 0) },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-5">
-            <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">{s.label}</p>
-            <p className="text-xl font-bold text-[#0c2944]">{s.value}</p>
-          </div>
-        ))}
+      <div className="grid gap-4 mb-4 sm:grid-cols-2">
+        <div className="bg-white rounded-2xl p-5">
+          <h2 className="text-xs uppercase tracking-widest text-gray-500 mb-2">Total de solicitudes</h2>
+          <p className="text-xl font-bold text-[#0c2944]">{solicitudes.data?.total ?? "—"}</p>
+        </div>
+        <div className="bg-white rounded-2xl p-5">
+          <h2 className="text-xs uppercase tracking-widest text-gray-500 mb-2">
+            {franjasPico.length > 1 ? "Horarios con más solicitudes" : "Horario con más solicitudes"}
+          </h2>
+          {franjasPico.length > 0 ? (
+            <>
+              <p className="text-xl font-bold text-[#0c2944]">
+                {franjasPico.map(({ hora }) => etiquetaFranja(hora)).join(" · ")}
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                {maxSolicitudes} {maxSolicitudes === 1 ? "solicitud" : "solicitudes"}
+                {franjasPico.length > 1 && " por franja"}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-600">{solicitudes.data ? "Sin solicitudes registradas." : mensajeSolicitudes}</p>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 lg:grid-cols-2">
         <div className="bg-white rounded-2xl p-6">
-          <p className="font-bold text-[#0c2944] mb-4">Canciones mas pedidas</p>
+          <h2 className="font-bold text-[#0c2944] mb-4">Canciones más votadas</h2>
           {topSongs.length === 0 ? (
             <p className="text-sm text-gray-400">No hay canciones pedidas todavía.</p>
           ) : (
@@ -116,30 +141,35 @@ export default function Tablero() {
               })}
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-4">Concentracion de votos de la noche</p>
         </div>
 
         <div className="bg-white rounded-2xl p-6">
-          <p className="font-bold text-[#0c2944] mb-4">Participacion por hora</p>
-          {participacion.length === 0 ? (
-            <p className="text-sm text-gray-400 mb-6">Sin actividad registrada.</p>
-          ) : (
-            <div className="flex items-end gap-3 h-32 mb-6">
-              {participacion.map((bar) => {
-                const heightPct = Math.round((bar.solicitudes / maxParticipacion) * 100)
-                return (
-                  <div key={bar.hora} className="flex-1 flex flex-col items-center gap-1">
+          <h2 className="font-bold text-[#0c2944]">Solicitudes por franja horaria</h2>
+          <p className="text-sm text-gray-600 mt-1 mb-4">
+            Hora local del establecimiento{zonaHoraria && ` (${zonaHoraria})`}
+          </p>
+          {franjas.length > 0 ? (
+            <ul className="space-y-3">
+              {franjas.map(({ hora, cantidad }) => (
+                <li key={hora} className="grid grid-cols-[auto_minmax(0,1fr)_2.5rem] items-center gap-2 text-sm">
+                  <span className="tabular-nums">{etiquetaFranja(hora)}</span>
+                  <div className="h-3 overflow-hidden rounded-full bg-gray-200" aria-hidden="true">
                     <div
-                      className={`w-full rounded-t ${bar.solicitudes === maxParticipacion ? "bg-[#ba1929]" : "bg-[#133b62]"}`}
-                      style={{ height: `${heightPct}%` }}
+                      className={`h-full rounded-full ${cantidad === maxSolicitudes ? "bg-[#ba1929]" : "bg-[#133b62]"}`}
+                      style={{ width: `${(cantidad / maxSolicitudes) * 100}%` }}
                     />
-                    <span className="text-xs text-gray-400">{bar.hora}</span>
                   </div>
-                )
-              })}
-            </div>
+                  <span className="text-right tabular-nums font-semibold text-[#0c2944]">{cantidad}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-600">{solicitudes.data ? "Sin solicitudes registradas." : mensajeSolicitudes}</p>
           )}
-          <h4 className="font-bold text-[#0c2944] text-sm mb-3">Historial de reproduccion</h4>
+        </div>
+
+        <div className="bg-white rounded-2xl p-6 lg:col-span-2">
+          <h2 className="font-bold text-[#0c2944] mb-3">Historial de reproducción</h2>
           <div className="space-y-2">
             {historial.length === 0 && <p className="text-sm text-gray-400">Sin historial aún.</p>}
             {historial.map((item, i) => (

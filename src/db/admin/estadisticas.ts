@@ -33,24 +33,46 @@ export async function obtenerCancionesTop(sesionId: string, limite = 4): Promise
     .slice(0, limite)
 }
 
-export type ParticipacionHora = { hora: string; solicitudes: number }
+type SolicitudesPorHora = { hora: number; cantidad: number }
 
-export async function obtenerParticipacionPorHora(sesionId: string): Promise<ParticipacionHora[]> {
-  const { data } = await supabase
-    .from("evento")
-    .select("created_at")
-    .eq("sesion_id", sesionId)
-    .in("tipo", ["solicitud_registrada", "voto_registrado"])
+export async function obtenerSolicitudesPorHora(sesionId: string, zonaHoraria: string) {
+  const formatoHora = new Intl.DateTimeFormat("es-CO", {
+    timeZone: zonaHoraria,
+    hour: "2-digit",
+    hourCycle: "h23",
+  })
+  const porHora = new Map<number, number>()
+  const limite = 500
+  let ultimoId: string | undefined
+  let total = 0
 
-  const porHora = new Map<string, number>()
-  for (const e of data ?? []) {
-    const hora = new Date(e.created_at).toISOString().slice(11, 13)
-    porHora.set(hora, (porHora.get(hora) ?? 0) + 1)
+  while (true) {
+    const consulta = supabase
+      .from("solicitud")
+      .select("id, created_at")
+      .eq("sesion_id", sesionId)
+      .order("id")
+      .limit(limite)
+
+    if (ultimoId !== undefined) consulta.gt("id", ultimoId)
+
+    const { data, error } = await consulta
+    if (error) throw error
+
+    for (const solicitud of data) {
+      const hora = Number(formatoHora.format(new Date(solicitud.created_at)))
+      porHora.set(hora, (porHora.get(hora) ?? 0) + 1)
+    }
+    total += data.length
+
+    if (data.length < limite) break
+    ultimoId = data[data.length - 1].id
   }
 
-  return [...porHora.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([hora, solicitudes]) => ({ hora: `${hora}:00`, solicitudes }))
+  const franjas: SolicitudesPorHora[] = Array.from(porHora, ([hora, cantidad]) => ({ hora, cantidad }))
+    .sort((a, b) => a.hora - b.hora)
+
+  return { total, franjas }
 }
 
 export type HistorialItem = {
